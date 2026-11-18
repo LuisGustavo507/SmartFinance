@@ -1,6 +1,5 @@
 package project.smartfinance.infrastructure.security;
 
-import java.time.Clock;
 import java.util.Base64;
 
 import javax.crypto.SecretKey;
@@ -19,11 +18,6 @@ import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 @Configuration
 class JwtTokenConfiguration {
-
-    @Bean
-    Clock clock() {
-        return Clock.systemUTC();
-    }
 
     @Bean
     SecretKey jwtSecretKey(@Value("${SMARTFINANCE_JWT_SECRET}") String encoded) {

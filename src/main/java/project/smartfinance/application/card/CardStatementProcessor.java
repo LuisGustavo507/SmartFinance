@@ -23,7 +23,7 @@ public class CardStatementProcessor {
 
     // Catch up after downtime; the conditional updates make repeated runs harmless.
     @EventListener(ApplicationReadyEvent.class)
-    @Scheduled(cron = "10 5 0 * * *", zone = "UTC")
+    @Scheduled(cron = "10 5 0 * * *", zone = "${smartfinance.time-zone:America/Sao_Paulo}")
     @Transactional
     public void processDue() {
         transitions.regularize(LocalDate.now(clock),

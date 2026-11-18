@@ -23,7 +23,7 @@ public class PlannedEntryProcessor {
 
     // Catch up after downtime; the conditional update makes repeated runs harmless.
     @EventListener(ApplicationReadyEvent.class)
-    @Scheduled(cron = "0 5 0 * * *", zone = "UTC")
+    @Scheduled(cron = "0 5 0 * * *", zone = "${smartfinance.time-zone:America/Sao_Paulo}")
     @Transactional
     public void processDue() {
         transitions.realizeDue(LocalDate.now(clock),
