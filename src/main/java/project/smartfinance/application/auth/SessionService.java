@@ -18,6 +18,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import project.smartfinance.application.user.UserAccountStore;
 import project.smartfinance.application.user.UserCredentials;
+import project.smartfinance.infrastructure.audit.SecurityAudit;
 
 @Service
 public class SessionService {
@@ -26,28 +27,32 @@ public class SessionService {
     private final RefreshSessionStore sessions;
     private final PasswordEncoder passwordEncoder;
     private final AccessTokenIssuer accessTokens;
+    private final SecurityAudit audit;
     private final Clock clock;
     private final Duration refreshTtl;
     private final SecureRandom random = new SecureRandom();
 
     public SessionService(UserAccountStore users, RefreshSessionStore sessions,
-            PasswordEncoder passwordEncoder, AccessTokenIssuer accessTokens, Clock clock,
-            @Value("${smartfinance.security.refresh-ttl:P7D}") Duration refreshTtl) {
+            PasswordEncoder passwordEncoder, AccessTokenIssuer accessTokens, SecurityAudit audit,
+            Clock clock, @Value("${smartfinance.security.refresh-ttl:P7D}") Duration refreshTtl) {
         this.users = users;
         this.sessions = sessions;
         this.passwordEncoder = passwordEncoder;
         this.accessTokens = accessTokens;
+        this.audit = audit;
         this.clock = clock;
         this.refreshTtl = refreshTtl;
     }
 
     @Transactional
     public Tokens login(String email, String password) {
-        UserCredentials user = users.findByEmail(email.toLowerCase(Locale.ROOT))
-                .orElseThrow(InvalidSessionException::new);
-        if (!user.active() || !passwordEncoder.matches(password, user.passwordHash())) {
+        UserCredentials user = users.findByEmail(email.toLowerCase(Locale.ROOT)).orElse(null);
+        if (user == null || !user.active()
+                || !passwordEncoder.matches(password, user.passwordHash())) {
+            audit.loginFailed();
             throw new InvalidSessionException();
         }
+        audit.loginSucceeded(user.id());
 
         String refresh = newRefreshToken();
         Instant expiresAt = clock.instant().plus(refreshTtl);
@@ -58,26 +63,39 @@ public class SessionService {
     @Transactional(noRollbackFor = InvalidSessionException.class)
     public Tokens refresh(String previousRefresh) {
         if (previousRefresh == null || previousRefresh.isBlank()) {
+            audit.refreshRejected("missing_token");
             throw new InvalidSessionException();
         }
         String previousHash = hash(previousRefresh);
-        UUID sessionId = sessions.findSessionId(previousHash)
-                .orElseThrow(InvalidSessionException::new);
-
-        // The family lock serializes requests racing to rotate the same token.
-        RefreshSessionStore.Session session = sessions.lockSession(sessionId)
-                .orElseThrow(InvalidSessionException::new);
-        if (session.revokedAt() != null) {
+        UUID sessionId = sessions.findSessionId(previousHash).orElse(null);
+        if (sessionId == null) {
+            audit.refreshRejected("unknown_token");
             throw new InvalidSessionException();
         }
-        RefreshSessionStore.RefreshToken token = sessions.findToken(previousHash)
-                .orElseThrow(InvalidSessionException::new);
+
+        // The family lock serializes requests racing to rotate the same token.
+        RefreshSessionStore.Session session = sessions.lockSession(sessionId).orElse(null);
+        if (session == null) {
+            audit.refreshRejected("unknown_session", sessionId.toString());
+            throw new InvalidSessionException();
+        }
+        if (session.revokedAt() != null) {
+            audit.refreshRejected("revoked_session", sessionId.toString());
+            throw new InvalidSessionException();
+        }
+        RefreshSessionStore.RefreshToken token = sessions.findToken(previousHash).orElse(null);
+        if (token == null) {
+            audit.refreshRejected("unknown_token", sessionId.toString());
+            throw new InvalidSessionException();
+        }
         if (token.consumedAt() != null) {
+            audit.refreshRejected("reused_token", sessionId.toString());
             sessions.revoke(sessionId, clock.instant());
             throw new InvalidSessionException();
         }
         Instant now = clock.instant();
         if (!now.isBefore(session.expiresAt()) || !now.isBefore(token.expiresAt())) {
+            audit.refreshRejected("expired_session", sessionId.toString());
             sessions.revoke(sessionId, now);
             throw new InvalidSessionException();
         }
@@ -85,6 +103,7 @@ public class SessionService {
                 .filter(UserCredentials::active)
                 .orElse(null);
         if (user == null) {
+            audit.refreshRejected("inactive_user", sessionId.toString());
             sessions.revoke(sessionId, now);
             throw new InvalidSessionException();
         }
@@ -103,6 +122,7 @@ public class SessionService {
         sessions.findSessionId(hash(refresh)).ifPresent(sessionId -> {
             if (sessions.lockSession(sessionId).isPresent()) {
                 sessions.revoke(sessionId, clock.instant());
+                audit.sessionRevoked(sessionId.toString());
             }
         });
     }

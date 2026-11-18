@@ -1,5 +1,7 @@
 package project.smartfinance.infrastructure.security;
 
+import jakarta.servlet.DispatcherType;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -52,6 +54,9 @@ class SecurityConfiguration {
                         .permissionsPolicy(permissions -> permissions
                                 .policy("geolocation=(), camera=(), microphone=()")))
                 .authorizeHttpRequests(auth -> auth
+                        // Error dispatches carry the original request; without this rule an
+                        // empty body validation error would be reported as 401.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auth/csrf").permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health",
                                 "/actuator/health/**").permitAll()
