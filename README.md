@@ -1,4 +1,4 @@
-cls# Smart Finance
+# Smart Finance
 
 Java 21, Spring Boot 4.1.2, PostgreSQL 18 e migrations SQL com Flyway.
 Há backend e um app Angular 21/PrimeNG com login, home de visão geral e
@@ -117,37 +117,40 @@ classificá-la. Na edição “esta e as futuras”, uma classificação escolhi
 alcança apenas as ocorrências previstas, preservando as processadas e
 canceladas. O valor deve ser maior que
 zero e ter até duas casas decimais. A data real não pode ser anterior à data
-do saldo inicial da carteira nem posterior ao dia corrente **em UTC** (limite
-técnico provisório enquanto não há fuso por usuário). O mês de referência é
+do saldo inicial da carteira nem posterior ao dia corrente **no fuso de
+negócio** (`America/Sao_Paulo`, configurável por
+`smartfinance.time-zone`). O mês de referência é
 o mês de `occurredOn`, inclusive para gastos retroativos; `createdAt` e
 `effectiveAt` registram o instante do cadastro. O status é `EFETIVADO`.
 O usuário autenticado é o proprietário, independentemente de
 `ownerUserId` enviado pelo cliente. A listagem filtra por mês e proprietário.
 Lançamentos `PREVISTO` usam a mesma carteira, categoria e entidade opcional,
 mas recebem `expectedOn` em vez de `occurredOn`. A data prevista precisa
-ser **posterior ao dia atual em UTC** e não anterior ao início da carteira.
+ser **posterior ao dia atual no fuso de negócio** e não anterior ao início
+da carteira.
 Até a efetivação, não afetam o saldo estimado nem os totais realizados.
 Podem ser cancelados enquanto previstos; um lançamento alheio retorna `404`,
 um já efetivado ou cancelado retorna `409`. Um lançamento ainda `PREVISTO`
 também pode ser editado: carteira, categoria, descrição, valor, entidade e
-data prevista podem mudar, mas a nova data deve continuar futura em UTC e a
-natureza segue a categoria escolhida. Lançamentos `EFETIVADO` ou `CANCELADO`
-não são editáveis e retornam `409`; assim o histórico realizado e o saldo não
-mudam retroativamente. O job roda diariamente às
-**00:05 UTC** e na inicialização da aplicação para recuperar dias perdidos.
-Ele efetiva cada previsto vencido uma única vez: `occurredOn` vira
-`expectedOn`, `effectiveAt` marca quando o job rodou e o mês de referência
-continua sendo o da data prevista. O cancelado não é processado nem aparece
-na listagem comum. O job e o cancelamento usam atualização condicional para
-evitar dupla transição. Essa regra usa UTC; um fuso por usuário seria uma
-decisão de produto futura. Estorno e conciliação bancária ainda não existem.
+data prevista podem mudar, mas a nova data deve continuar futura no fuso de
+negócio e a natureza segue a categoria escolhida. Lançamentos `EFETIVADO`
+ou `CANCELADO` não são editáveis e retornam `409`; assim o histórico
+realizado e o saldo não mudam retroativamente. O job roda diariamente às
+**00:05 de `America/Sao_Paulo`** e na inicialização da aplicação para
+recuperar dias perdidos. Ele efetiva cada previsto vencido uma única vez:
+`occurredOn` vira `expectedOn`, `effectiveAt` marca quando o job rodou e o
+mês de referência continua sendo o da data prevista. O cancelado não é
+processado nem aparece na listagem comum. O job e o cancelamento usam
+atualização condicional para evitar dupla transição. O fuso é configurável
+por `smartfinance.time-zone`; timestamps persistidos e JWT continuam em UTC.
+Estorno e conciliação bancária ainda não existem.
 
 Uma série mensal finita é criada em uma única transação com **1 a 120**
 ocorrências, todas `PREVISTO` inicialmente. A primeira data deve ser futura
-em UTC e não anteceder o saldo inicial da carteira. Cada ocorrência é um
-lançamento independente com `seriesId`, `occurrenceNumber` (de 1 ao total)
-e `totalOccurrences`; usa a mesma carteira, categoria, valor, descrição e
-entidade opcional. A data de cada mês é calculada a partir do **dia da
+no fuso de negócio e não anteceder o saldo inicial da carteira. Cada
+ocorrência é um lançamento independente com `seriesId`, `occurrenceNumber`
+(de 1 ao total) e `totalOccurrences`; usa a mesma carteira, categoria,
+valor, descrição e entidade opcional. A data de cada mês é calculada a partir do **dia da
 primeira data**, sem deslocamento cumulativo: uma série iniciada em 31/01
 usa o último dia de fevereiro e volta ao dia 31 em março. Séries além de
 9999-12 são rejeitadas. Esta convenção de ajuste de dia é **provisória** e
@@ -203,7 +206,7 @@ A fatura que recebe a compra é a que **fecha no primeiro dia de fechamento
 igual ou posterior à data da compra**; o vencimento é o dia de vencimento do
 mês da fatura e, quando o dia de vencimento não é maior que o de fechamento,
 o vencimento cai no mês seguinte. O ciclo da fatura vai do dia seguinte ao
-fechamento anterior até o dia de fechamento, inclusive, em UTC. A fatura
+fechamento anterior até o dia de fechamento, inclusive. A fatura
 pertence ao **mês do vencimento** e há no máximo uma por cartão e mês. A
 parcela 1 fica no ciclo da compra e as seguintes em ciclos mensais
 consecutivos.
@@ -211,13 +214,14 @@ consecutivos.
 Os estados de fatura são `PROJETADA` (ciclo ainda não começou), `ABERTA`
 (ciclo em curso), `FECHADA` (ciclo encerrado, aguardando pagamento), `PAGA`
 (quitada) e `ATRASADA` (vencida sem quitação). As transições são dirigidas
-pelas **datas em UTC**, não por um botão: o ciclo que começou vira aberto, o
-ciclo que terminou vira fechado — ou **pago com valor zero** quando não há
-cobrança ativa — e a fatura fechada que passou do vencimento vira atrasada. Um
-job diário (00:10 UTC) e a inicialização da aplicação aplicam essas
-transições; a listagem de faturas, o registro de compra e o pagamento também
-as regularizam antes de decidir, então o atraso do job não amplia ciclo
-nenhum. O total da fatura aberta é a soma das parcelas ativas e
+pelas **datas de calendário** (com o dia corrente no fuso de negócio), não
+por um botão: o ciclo que começou vira aberto, o ciclo que terminou vira
+fechado — ou **pago com valor zero** quando não há cobrança ativa — e a
+fatura fechada que passou do vencimento vira atrasada. Um
+job diário (00:10 de `America/Sao_Paulo`) e a inicialização da aplicação
+aplicam essas transições; a listagem de faturas, o registro de compra e o
+pagamento também as regularizam antes de decidir, então o atraso do job não
+amplia ciclo nenhum. O total da fatura aberta é a soma das parcelas ativas e
 `valorFechado` guarda o total líquido consolidado no fechamento.
 
 O pagamento é **único e integral**, feito por uma carteira do próprio usuário
@@ -326,8 +330,12 @@ filtragem é por mês de referência e proprietário, não pelo mês em que o
 registro foi feito.
 
 O cadastro normaliza o email para minúsculas; duplicidade responde `409`.
-A senha é armazenada como hash BCrypt (mínimo de 12 caracteres, máximo de
-72 bytes UTF-8) e nunca aparece nas respostas. O status inicial é `ATIVO`;
+No beta fechado (`smartfinance.registration.invite-required=true`), apenas
+emails presentes em `convite_beta` podem criar conta; fora da lista a resposta
+é `403` com `code: "invite_required"`. O convite é consumido na mesma
+transação do cadastro e grava `usado_em`/`usado_por`. A senha é armazenada
+como hash BCrypt (mínimo de 12 caracteres, máximo de 72 bytes UTF-8) e nunca
+aparece nas respostas. O status inicial é `ATIVO`;
 alterá-lo para `INATIVO` bloqueia imediatamente novas chamadas protegidas e
 renovações.
 
@@ -364,11 +372,21 @@ Não há revogação imediata do access por logout; conta `INATIVA` é checada
 imediatamente. O servidor não aceita header `Authorization` como substituto
 do cookie nesta versão web.
 
-**Não expor esta implementação publicamente ainda.** Antes de produção,
-definir e testar limitação de tentativas, verificação de email, política de
-segredos/rotação de chaves, estratégia de limpeza de sessões expiradas, proxy
-HTTPS confiável e medidas contra abuso de cadastro. O cadastro atual é
-aberto, sem verificação do endereço de email.
+### Proteções para produção
+
+O beta é fechado por lista de emails. Login, cadastro e renovação de sessão
+têm rate limit em memória por instância (resposta `429` com `Retry-After`);
+login só consome cota em falha. Erros saem como `ProblemDetail` com `code`,
+`requestId` e `instance`, e cada linha de log carrega o `X-Request-Id`. A
+auditoria registra `login_succeeded`, `login_failed`, `logout`,
+`rate_limited`, `registration_rejected`, `user_registered`, entre outros.
+
+HTTPS e cookies `Secure` são obrigatórios em produção. Atrás do Caddy, use
+`SMARTFINANCE_TRUST_FORWARDED_FOR=true`; sem proxy confiável, mantenha
+`false`. Ainda não há verificação de email: quem se cadastrar primeiro com um
+email convidado fica com a conta — mitigado pelo beta pequeno, rate limit e
+auditoria. Rate limit e jobs agendados são por instância; não há coordenação
+entre réplicas.
 
 ### Organização e dados
 
@@ -383,7 +401,8 @@ aberto, sem verificação do endereço de email.
     estorno e aplicações nas faturas) e V12 (classificação opcional no schema
     para preservar despesas históricas; exigida pela API em novas despesas)
     e V13 (catálogo global de instituições com a entrada `OUTRA` e
-    instituições pré-cadastradas).
+    instituições pré-cadastradas), V14 (descrições opcionais em lançamentos e
+    compras) e V15 (convites do beta fechado, com consumo único por email).
 - `src/main/java/project/smartfinance/infrastructure/persistence/generated/`:
   classes JPA **geradas a partir do schema migrado**, nunca editar à mão.
   Hibernate apenas valida o schema (`ddl-auto=validate`).
@@ -450,8 +469,10 @@ npm start -- --host 127.0.0.1
 ```
 
 Abra `http://127.0.0.1:4200`. Use **somente** essa origem no navegador: o
-proxy encaminha `/api` a 8080 sem CORS. Em produção, um proxy HTTPS deverá
-servir o Angular e encaminhar `/api` na mesma origem.
+proxy encaminha `/api` a 8080 sem CORS. Em produção não existe servidor Node:
+`./mvnw -Pfrontend package` compila o Angular para dentro do jar, e o Spring
+Boot serve a SPA e a API na mesma origem. O Caddy cuida do HTTPS e encaminha
+tudo para a aplicação (veja [deploy/ORACLE.md](deploy/ORACLE.md)).
 
 O app é mobile-first e usa rotas com carregamento sob demanda:
 
@@ -486,9 +507,8 @@ páginas em chunks; o inicial ainda supera o orçamento padrão por causa do
 Angular/PrimeNG e o orçamento local foi ajustado para 600 kB.
 
 Nesta máquina, `frontend/node_modules` aponta para
-`/data/SmartFinance/frontend/node_modules`, cache npm em
-`/data/SmartFinance/npm-cache` e cache Angular em
-`/data/SmartFinance/angular-cache`. **Não rode `npm ci` por cima do link:**
+`/data/SmartFinance/frontend/node_modules` e o cache npm fica em
+`/data/SmartFinance/npm-cache`. **Não rode `npm ci` por cima do link:**
 o npm substitui o link por uma pasta no SSD. Para instalar/reinstalar no HD,
 a partir da **raiz do projeto**:
 
@@ -548,7 +568,7 @@ o bundle inicial fica em torno de 533 kB, acima do padrão de 500 kB, e o
 orçamento local foi elevado para 600 kB. Reduzir dependências do layout
 raiz é uma otimização possível para uma próxima fatia.
 
-Validação atual: 56 testes de integração/unidade do backend e 34 testes
+Validação atual: 84 testes de integração/unidade do backend e 42 testes
 do frontend passaram. Também foram percorridos no navegador, pelo proxy
 local, cadastro → login → home com menu lateral → criação de categoria →
 criação de série pela página de lançamentos (31/01, 28/02, 31/03) →
@@ -595,7 +615,7 @@ páginas roteadas, resumo mensal e transferências são cobertos por testes de
 componente/estado Angular.
 
 **Fechamento da V1.** As migrations rodam do zero a cada execução da suíte
-(13 aplicadas em banco limpo) e o catálogo global está íntegro. O isolamento
+(15 aplicadas em banco limpo) e o catálogo global está íntegro. O isolamento
 entre usuários e o CSRF são verificados por testes em cada escrita; rotas sem
 sessão respondem `401`. Todas as telas têm estado vazio próprio. Um percurso
 completo foi feito no navegador com usuário novo: cadastro → login → home
@@ -615,7 +635,43 @@ moedas, contabilidade formal e projeção de saldo futuro por conta. O fluxo
 de solicitação de inclusão de instituição no catálogo continua não
 definido, e a lista de instituições pré-cadastradas é provisória.
 
-O que foi exercido no navegador creates usuários, carteiras, categorias,
+O que foi exercido no navegador criou usuários, carteiras, categorias,
 séries, cartões, compras e pagamentos de teste no banco local; isso não
 equivale a uma validação de segurança para produção nem a uma aprovação
 final da aparência.
+
+## Build de produção e implantação
+
+O jar de produção contém a API e o Angular já compilado:
+
+```sh
+./mvnw -Pfrontend -DskipTests package
+```
+
+O profile `frontend` roda `npm ci` e `npm run build` antes de empacotar
+`frontend/dist/frontend/browser` em `static/`. Sem o profile, o build usa o
+`dist/` existente (ou nenhum frontend, se ele não tiver sido gerado). A SPA é
+servida com fallback para `index.html` em rotas do Angular; `/api`,
+`/actuator`, `/error` e caminhos com extensão nunca caem no shell.
+Para executar o jar diretamente, configure antes as variáveis de banco e o
+segredo JWT descritos acima em “Banco local (Docker)”; na Oracle, o Compose
+faz isso via `deploy/.env`.
+
+Para uma VM da Oracle Cloud Always Free há uma stack Docker Compose com
+PostgreSQL 18, aplicação e Caddy (TLS automático):
+
+- `deploy/compose.yaml`: serviços, rede interna, volumes e healthchecks.
+- `deploy/Dockerfile`: build multi-stage Node → Maven → JRE sem root.
+- `deploy/Caddyfile`: HTTPS e proxy para `app:8080`.
+- `deploy/backup.sh`: `pg_dump` com retenção e escrita atômica.
+- `deploy/.env.example`: variáveis e segredos a preencher.
+- [deploy/ORACLE.md](deploy/ORACLE.md): roteiro de console, firewall, DNS,
+  deploy, convites, backup, restauração, atualizações e checklist de go-live.
+
+O banco não publica porta no host, e a aplicação não é acessível fora da rede
+interna do Compose. O rate limit e os jobs agendados são por instância; a
+topologia assume **uma réplica**. O fuso de negócio padrão é
+`America/Sao_Paulo` (`SMARTFINANCE_TIME_ZONE`).
+Essa stack foi validada localmente com HTTPS em `localhost` (certificado de
+desenvolvimento do Caddy), cadastro, login, backup e restauração. Ainda não
+houve implantação na Oracle nem certificado de domínio público.

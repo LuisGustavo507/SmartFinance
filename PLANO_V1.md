@@ -16,8 +16,9 @@ entre especificação e implementação devem ser explicitadas antes de corrigir
   `VALIDADA` depois de testes backend/frontend pertinentes, build, fluxo
   observado no navegador quando aplicável e atualização dos READMEs.
 - Cada fatia deve preservar isolamento entre usuários, CSRF, histórico,
-  valores monetários e regras de datas em UTC. Migrations SQL Flyway somente
-  quando o schema precisar mudar; regenerar JPA a partir do schema.
+  valores monetários e regras de datas no fuso de negócio. Migrations SQL
+  Flyway somente quando o schema precisar mudar; regenerar JPA a partir do
+  schema.
 - Registrar abaixo descobertas, decisões aprovadas, resultados e bloqueios.
   Dúvidas que não afetem a fatia atual não impedem o avanço.
 - A revisão **visual final** fica para depois da implementação funcional da
@@ -38,7 +39,7 @@ entidades independentes, lançamentos realizados/previstos/séries,
 transferências, cartões/compras/faturas/pagamento/estorno integral,
 classificação de despesas e resumo mensal por necessidade, categoria e
 entidade, com relatório por período e gráficos ao longo do tempo. Na última
-validação: 56 testes backend, 34 frontend e build Angular; a aprovação
+validação: 84 testes backend, 42 frontend e build Angular; a aprovação
 visual permanece pendente.
 
 ## Etapas restantes
@@ -190,7 +191,7 @@ aparência de aprovada antes disso.
 vazio → categoria → conta → despesa com entidade criada junto → cartão →
 compra parcelada → resumo com agrupamentos → filtro por entidade →
 relatórios com gráfico e quebra por entidade); estados vazios em todas as
-telas; 13 migrations aplicadas do zero em banco limpo a cada execução da
+telas; 13 migrations aplicadas do zero em banco limpo à época da validação da
 suíte; `401` em rotas sem sessão e CSRF coberto por teste em cada escrita;
 Lighthouse com acessibilidade 1,0 e boas práticas 1,0 na página de
 relatórios. Cartão passou a referenciar instituições do catálogo (igual às
@@ -217,7 +218,31 @@ de instituição no catálogo e lista de instituições pré-cadastradas
 | 7 | VALIDADA | 55 testes backend, 34 frontend, build Angular e navegador: série mensal com meses vazios em zero, gráfico SVG de receitas/despesas realizadas por mês e lista de valores; resultado realizado e projetado vêm calculados no backend. |
 | 8 | VALIDADA | 56 testes backend, 34 frontend, build Angular e percurso completo no navegador com usuário novo; estados vazios em todas as telas; migrations do zero (13) a cada execução da suíte; `401` sem sessão; Lighthouse acessibilidade 1,0 e boas práticas 1,0. Cartão passou a usar o catálogo de instituições. Lacunas conhecidas registradas no README. |
 
-### Caution de execução
+## Preparação para produção
+
+Depois do fechamento funcional, os preparativos para a implantação foram
+feitos em fatias pequenas, com testes automatizados e validação em servidor
+local real. A implantação na Oracle ainda depende da VM, do domínio e de
+autorização explícita do usuário.
+
+| Etapa | Estado | Evidência |
+|---|---|---|
+| 1. Runtime de produção | VALIDADA | Actuator com health público, `PORT`, proxy headers, shutdown gracioso, compressão e headers de segurança; `ProductionRuntimeIntegrationTests`. Commit `ab0b71a`. |
+| 2. Erros e rastreabilidade | VALIDADA | `ProblemDetail` com `code`/`requestId`/`instance`, `/error` via ERROR dispatch, `X-Request-Id` em log e resposta, auditoria de sessão e senha suprimida dos logs. Commit `b35942e`. |
+| 3. Rate limit | VALIDADA | Limite em memória em login (só falhas), cadastro e refresh; `429` com `Retry-After`, headers de segurança e auditoria `rate_limited`. Commit `132b67a`. |
+| 4. Fuso de negócio | VALIDADA | Relógio e jobs em `America/Sao_Paulo` configurável, timestamps persistidos/JWT em UTC; validado com `TZ=UTC`. Commit `2ef07ff`. |
+| 5. Beta fechado | VALIDADA | Lista `convite_beta` (V15), consumo atômico no cadastro, `403 invite_required`, auditoria `registration_rejected` e aviso no frontend; validado em servidor local. Commit `0d68688`. |
+| 6. Frontend no jar | VALIDADA | Build Angular copiado para `static`, profile `frontend`, fallback de rotas da SPA, API/actuator/error protegidos; jar validado em servidor local. Commit `b88d621`. |
+| 7. Empacotamento e deploy | VALIDADA LOCALMENTE | Dockerfile multi-stage, Compose com PostgreSQL 18 + Caddy, backup/restauração e roteiro Oracle; stack local validada com HTTPS. Commit `d5cdf5d`. |
+| 8. Documentação e checklist | VALIDADA LOCALMENTE | README e este plano atualizados; checklist de go-live em `deploy/ORACLE.md`. |
+
+A topologia assume uma réplica: rate limit e jobs agendados são por instância.
+O PostgreSQL não publica porta no host e a aplicação só é alcançável pela rede
+interna do Compose, atrás do Caddy.
+Os itens de go-live, inclusive certificado de domínio público e backup
+externo, só podem ser marcados após implantação autorizada na Oracle.
+
+### Cuidado de execução
 
 Ao mudar assinaturas de casos de uso, o plugin de compilação do Maven pode
 considerar as classes de teste desatualizadas e não recompilá-las. Depois de
@@ -227,7 +252,8 @@ antigo.
 
 ## Encerramento
 
-Todas as etapas documentadas foram implementadas e validadas. O sistema
-entrega a V1 funcional; falta apenas a **avaliação visual do usuário**, que
-fica fora do ciclo automático de implementação. Novas entradas de escopo
-devem ser adicionadas a este arquivo antes de virar fatia.
+As etapas funcionais foram implementadas e validadas. A V1 está preparada
+localmente para produção, mas não foi publicada; faltam a implantação
+autorizada na Oracle, a conferência do checklist de go-live e a **avaliação
+visual do usuário**. Novas entradas de escopo devem ser adicionadas a este
+arquivo antes de virar fatia.
