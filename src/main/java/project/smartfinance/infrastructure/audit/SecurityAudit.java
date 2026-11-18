@@ -37,4 +37,8 @@ public class SecurityAudit {
     public void sessionRevoked(String sessionId) {
         log.info("event=session_revoked sessionId={}", sessionId);
     }
+
+    public void rateLimited(String path, long retryAfterSeconds) {
+        log.warn("event=rate_limited path={} retryAfter={}s", path, retryAfterSeconds);
+    }
 }
