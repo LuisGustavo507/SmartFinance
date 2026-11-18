@@ -5,7 +5,7 @@
   }
   <aside class="sidebar" [class.open]="menuOpen()" aria-label="Menu principal">
     <div class="sidebar-brand">
-      <i class="pi pi-chart-line"></i>
+      <img src="logo.png" alt="" width="32" height="32" />
       <span>Smart Finance</span>
     </div>
     <nav class="nav" aria-label="Páginas">
@@ -41,7 +41,7 @@
               aria-label="Abrir menu" (click)="toggleMenu()">
         <i class="pi" [class.pi-bars]="!menuOpen()" [class.pi-times]="menuOpen()"></i>
       </button>
-      <span class="mobile-brand"><i class="pi pi-chart-line"></i> Smart Finance</span>
+      <span class="mobile-brand"><img src="logo.png" alt="" width="26" height="26" /> Smart Finance</span>
     </header>
     @if (store.error()) { <p class="alert content-alert" role="alert">{{ store.error() }}</p> }
     @if (store.notice()) { <p class="notice content-alert" role="status">{{ store.notice() }}</p> }

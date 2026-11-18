@@ -44,7 +44,7 @@
   font-weight: 800;
   letter-spacing: -.01em;
 }
-.sidebar-brand i { color: var(--sf-blue); font-size: 1.4rem; }
+.sidebar-brand img { width: 2rem; height: 2rem; flex: 0 0 auto; object-fit: contain; }
 
 .nav { display: flex; flex-direction: column; gap: .2rem; }
 .nav a {
@@ -107,8 +107,13 @@
   color: var(--sf-link-dark);
   cursor: pointer;
 }
-.mobile-brand { font-weight: 800; }
-.mobile-brand i { color: var(--sf-blue); margin-right: .3rem; }
+.mobile-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  font-weight: 800;
+}
+.mobile-brand img { width: 1.65rem; height: 1.65rem; object-fit: contain; }
 
 .page { width: 100%; max-width: 1180px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
 .content-alert { margin: 1rem; }
