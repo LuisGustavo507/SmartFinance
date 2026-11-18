@@ -120,6 +120,16 @@ class ErrorHandlingIntegrationTests {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test
+    void spaRoutesArePublicButApiStaysProtected() throws Exception {
+        MvcResult spa = mvc.perform(get("/carteiras")).andReturn();
+        // 200 when the frontend is packaged, 404 when it is not; never 401.
+        assertThat(spa.getResponse().getStatus()).isIn(200, 404);
+
+        mvc.perform(get("/api/wallets"))
+                .andExpect(status().isUnauthorized());
+    }
+
     private Cookie csrf() throws Exception {
         Cookie csrf = mvc.perform(get("/api/auth/csrf"))
                 .andExpect(status().isNoContent())

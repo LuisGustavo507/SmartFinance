@@ -28,6 +28,7 @@
     </scm>
     <properties>
         <java.version>21</java.version>
+        <exec-maven-plugin.version>3.5.0</exec-maven-plugin.version>
     </properties>
     <dependencies>
         <dependency>
@@ -117,6 +118,17 @@
     </dependencies>
 
     <build>
+        <!-- The Angular build is packaged inside the jar and served by Spring Boot,
+             so the browser and the API share the same origin. -->
+        <resources>
+            <resource>
+                <directory>src/main/resources</directory>
+            </resource>
+            <resource>
+                <directory>frontend/dist/frontend/browser</directory>
+                <targetPath>static</targetPath>
+            </resource>
+        </resources>
         <plugins>
             <!-- Run hbm2java explicitly; ordinary builds do not require a live database. -->
             <plugin>
@@ -191,5 +203,53 @@
             </plugin>
         </plugins>
     </build>
+
+    <profiles>
+        <!-- Builds the frontend first, for machines that have Node installed.
+             Usage: ./mvnw -Pfrontend package -->
+        <profile>
+            <id>frontend</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>${exec-maven-plugin.version}</version>
+                        <executions>
+                            <execution>
+                                <id>npm-ci</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>npm</executable>
+                                    <workingDirectory>${project.basedir}/frontend</workingDirectory>
+                                    <arguments>
+                                        <argument>ci</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>npm-build</id>
+                                <phase>generate-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>npm</executable>
+                                    <workingDirectory>${project.basedir}/frontend</workingDirectory>
+                                    <arguments>
+                                        <argument>run</argument>
+                                        <argument>build</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>

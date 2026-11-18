@@ -63,6 +63,9 @@ class SecurityConfiguration {
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login", "/api/auth/refresh",
                                 "/api/auth/logout").permitAll()
+                        // SPA shell and hashed assets are public; data stays behind the API.
+                        .requestMatchers("/api/**", "/actuator/**", "/error").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(new CookieJwtAuthenticationFilter(decoder, users),
                         UsernamePasswordAuthenticationFilter.class);
