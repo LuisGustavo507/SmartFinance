@@ -1,0 +1,367 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Movimentações</p>
+    <h1>Lançamentos</h1>
+    <p class="page-subtitle">Registre receitas, despesas e compras no cartão em um só lugar.</p>
+  </div>
+</header>
+
+@if (store.editingEntryId()) {
+  <p-card id="entry-edit" header="Editar lançamento" styleClass="edit-card">
+    <p class="muted">
+      Somente lançamentos previstos podem ser editados.
+      @if (store.editingSeriesId !== null) {
+        “Salvar esta e as futuras” altera apenas as ocorrências previstas a partir desta.
+      }
+    </p>
+    <form (ngSubmit)="store.saveEntryEdit('single')" class="form">
+      <label for="edit-wallet">Carteira</label>
+      <select id="edit-wallet" name="edit-wallet" [(ngModel)]="store.editWalletId" required>
+        <option [ngValue]="null">Selecione</option>
+        @for (wallet of store.activeWallets(); track wallet.id) {
+          <option [ngValue]="wallet.id">{{ wallet.name }}</option>
+        }
+      </select>
+      <label for="edit-category">Categoria</label>
+      <select id="edit-category" name="edit-category" [(ngModel)]="store.editCategoryId" required>
+        <option [ngValue]="null">Selecione</option>
+        @for (category of store.categories(); track category.id) {
+          @if (category.active) {
+            <option [ngValue]="category.id">{{ category.name }} ({{ category.kind === 'RECEITA' ? 'Receita' : 'Despesa' }})</option>
+          }
+        }
+      </select>
+      @if (store.editCategoryIsExpense()) {
+        <label for="edit-necessity">Necessidade</label>
+        <select id="edit-necessity" name="edit-necessity" [(ngModel)]="store.editNecessity"
+                [required]="!store.editingEntryUnclassified">
+          <option [ngValue]="null">{{ store.editingEntryUnclassified ?
+            'Sem classificação (histórico antigo)' : 'Selecione' }}</option>
+          <option value="NECESSARIA">Necessária</option>
+          <option value="NEUTRA">Neutra</option>
+          <option value="FUTIL">Fútil</option>
+        </select>
+      }
+      <label for="edit-entity">Entidade (opcional)</label>
+      <select id="edit-entity" name="edit-entity" [(ngModel)]="store.editEntityId">
+        <option [ngValue]="null">Sem entidade</option>
+        @for (entity of store.counterparties(); track entity.id) {
+          @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
+        }
+      </select>
+      <label for="edit-description">Descrição (opcional)</label>
+      <input pInputText id="edit-description" name="edit-description"
+             [(ngModel)]="store.editDescription" maxlength="255" />
+      <label for="edit-amount">Valor</label>
+      <app-money-field inputId="edit-amount" name="edit-amount" [(ngModel)]="store.editAmount" />
+      <label for="edit-expected-on">Data prevista</label>
+      <app-date-field inputId="edit-expected-on" name="edit-expected-on"
+                      [(ngModel)]="store.editExpectedOn" required />
+      <div class="edit-actions">
+        <p-button type="submit" label="Salvar esta ocorrência" [loading]="store.busy()"
+                  [disabled]="editDisabled()" />
+        @if (store.editingSeriesId !== null) {
+          <p-button type="button" label="Salvar esta e as futuras" severity="secondary"
+                    [outlined]="true" [loading]="store.busy()"
+                    [disabled]="editDisabled()"
+                    (onClick)="store.saveEntryEdit('future')" />
+        }
+        <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
+                  (onClick)="store.cancelEntryEdit()" />
+      </div>
+    </form>
+  </p-card>
+}
+
+@if (store.selectedSeriesId(); as seriesId) {
+  <p-card id="series-details" [header]="'Série ' + seriesId" styleClass="series-card">
+    <p>{{ occurrencesLabel() }}. Cada lançamento pode ser cancelado
+      individualmente enquanto estiver previsto.</p>
+    <ul class="simple-list">
+      @for (entry of store.selectedSeries(); track entry.id) {
+        <li>
+          <span class="list-date">{{ entry.occurrenceNumber }}/{{ entry.totalOccurrences }}</span>
+          <span class="list-main">
+             {{ shortDate(entry.expectedOn ?? entry.occurredOn) }} · {{ entry.description || 'Sem descrição' }}
+            @if (entry.kind === 'DESPESA') {
+              <small class="muted">· {{ necessityLabel(entry.necessity) }}</small>
+            }
+          </span>
+          <span class="list-amount">{{ money(entry.amount) }}</span>
+          <span class="badge" [class.inactive]="entry.status !== 'PREVISTO'">{{ entry.status }}</span>
+          @if (entry.status === 'PREVISTO') {
+            <p-button label="Editar" severity="secondary" [text]="true"
+                      [disabled]="store.busy()" (onClick)="startEdit(entry)" />
+            <p-button label="Cancelar" severity="secondary" [text]="true"
+                      [disabled]="store.busy()" (onClick)="store.cancelEntry(entry.id)" />
+          }
+        </li>
+      }
+    </ul>
+    <p-button label="Fechar série" severity="secondary" [text]="true" (onClick)="store.closeSeries()" />
+  </p-card>
+}
+
+<div class="grid">
+  <p-card header="Registrar lançamento">
+    <form (ngSubmit)="submit()" class="form">
+      <label for="entry-payment-method">Forma de pagamento</label>
+      <select id="entry-payment-method" name="entry-payment-method"
+              [(ngModel)]="store.entryPaymentMethod" (ngModelChange)="paymentChanged()">
+        <option value="wallet">Conta ou carteira</option>
+        <option value="card">Cartão de crédito</option>
+      </select>
+      @if (store.entryPaymentMethod === 'wallet') {
+      <label for="entry-mode">Tipo de registro</label>
+      <select id="entry-mode" name="entry-mode" [(ngModel)]="store.entryMode"
+              (ngModelChange)="store.onEntryModeChange()">
+        <option value="realized">Já ocorreu</option>
+        <option value="planned">Previsto para o futuro</option>
+        <option value="series">Série mensal finita</option>
+      </select>
+      }
+      @if (store.entryPaymentMethod === 'wallet') {
+      <label for="entry-wallet">Carteira</label>
+      <select id="entry-wallet" name="entry-wallet" [(ngModel)]="store.entryWalletId"
+              [attr.aria-describedby]="attempted && store.entryWalletId === null ? 'entry-wallet-error' : null" required>
+        <option [ngValue]="null">Selecione</option>
+        @for (wallet of store.activeWallets(); track wallet.id) {
+          <option [ngValue]="wallet.id">{{ wallet.name }}</option>
+        }
+      </select>
+      @if (attempted && store.entryWalletId === null) {
+        <small id="entry-wallet-error" class="field-error">Selecione uma carteira.</small>
+      }
+      } @else {
+        <label for="purchase-card">Cartão</label>
+        <select id="purchase-card" name="purchase-card" [(ngModel)]="store.purchaseCardId"
+                [attr.aria-describedby]="attempted && store.purchaseCardId === null ? 'purchase-card-error' : null" required>
+          <option [ngValue]="null">Selecione</option>
+          @for (card of store.cards(); track card.id) {
+            @if (card.active) {
+              <option [ngValue]="card.id">{{ card.name }} ({{ card.institutionName || 'Sem instituição' }})</option>
+            }
+          }
+        </select>
+        @if (attempted && store.purchaseCardId === null) {
+          <small id="purchase-card-error" class="field-error">Selecione um cartão ativo.</small>
+        }
+        @if (store.cards().length === 0) {
+          <p class="muted">Você ainda não tem cartão. <a routerLink="/cartoes">Cadastre um em Cartões</a>.</p>
+        }
+      }
+      <label for="entry-category">Categoria</label>
+      <select id="entry-category" name="entry-category" [(ngModel)]="store.entryCategoryId"
+              [attr.aria-describedby]="attempted && store.entryCategoryId === null ? 'entry-category-error' : null" required>
+        <option [ngValue]="null">Selecione</option>
+        @for (category of store.categories(); track category.id) {
+          @if (category.active && (store.entryPaymentMethod === 'wallet' || category.kind === 'DESPESA')) {
+            <option [ngValue]="category.id">{{ category.name }} ({{ category.kind === 'RECEITA' ? 'Receita' : 'Despesa' }})</option>
+          }
+        }
+      </select>
+      @if (attempted && store.entryCategoryId === null) {
+        <small id="entry-category-error" class="field-error">Selecione uma categoria.</small>
+      }
+      @if (store.entryCategoryIsExpense()) {
+        <label for="entry-necessity">Necessidade</label>
+        <select id="entry-necessity" name="entry-necessity"
+                [attr.aria-describedby]="attempted && store.entryNecessity === null ? 'entry-necessity-error' : null"
+                 [(ngModel)]="store.entryNecessity" required>
+          <option [ngValue]="null">Selecione</option>
+          <option value="NECESSARIA">Necessária</option>
+          <option value="NEUTRA">Neutra</option>
+          <option value="FUTIL">Fútil</option>
+        </select>
+        @if (attempted && store.entryNecessity === null) {
+          <small id="entry-necessity-error" class="field-error">Classifique a necessidade da despesa.</small>
+        }
+      }
+      <label for="entry-entity">Entidade (opcional)</label>
+      <select id="entry-entity" name="entry-entity" [(ngModel)]="store.entryEntityId">
+        <option [ngValue]="null">Sem entidade</option>
+        @for (entity of store.counterparties(); track entity.id) {
+          @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
+        }
+      </select>
+      <label for="entry-new-entity">Ou nova entidade</label>
+      <input pInputText id="entry-new-entity" name="entry-new-entity"
+             [(ngModel)]="store.entryNewEntityName" maxlength="120"
+             placeholder="Cadastrar junto com o registro" />
+      <small class="muted">Preencha a nova entidade apenas se não escolher uma acima.</small>
+      @if (attempted && store.entryEntityId !== null && store.entryNewEntityName.trim()) {
+        <small class="field-error">Use apenas uma das opções de entidade.</small>
+      }
+      <label for="entry-description">Descrição (opcional)</label>
+      <input pInputText id="entry-description" name="entry-description"
+             [(ngModel)]="store.entryDescription" maxlength="255" />
+      <label for="entry-amount">Valor</label>
+      <app-money-field inputId="entry-amount" name="entry-amount" [(ngModel)]="store.entryAmount" />
+      @if (attempted && (store.entryAmount === null || store.entryAmount <= 0)) {
+        <small class="field-error">Informe um valor maior que zero.</small>
+      }
+      <label for="entry-date">{{ store.entryPaymentMethod === 'card' ? 'Data da compra' :
+        store.entryMode === 'series' ? 'Primeira data prevista' :
+        store.entryMode === 'planned' ? 'Data prevista' : 'Data em que ocorreu' }}</label>
+      <app-date-field inputId="entry-date" name="entry-date"
+                       [(ngModel)]="store.entryDate" required />
+      @if (attempted && !store.entryDate) {
+        <small class="field-error">Selecione a data.</small>
+      }
+      @if (store.entryPaymentMethod === 'card') {
+        <label for="purchase-installments">Parcelas (1 a 120)</label>
+        <p-inputnumber inputId="purchase-installments" name="purchase-installments"
+                       [(ngModel)]="store.purchaseInstallments" [min]="1" [max]="120"
+                       [useGrouping]="false" />
+        @if (attempted && (store.purchaseInstallments === null || store.purchaseInstallments < 1
+          || store.purchaseInstallments > 120)) {
+          <small class="field-error">Informe entre 1 e 120 parcelas.</small>
+        }
+      } @else if (store.entryMode === 'series') {
+        <label for="series-count">Quantidade de meses (1 a 120)</label>
+        <p-inputnumber inputId="series-count" name="series-count" [(ngModel)]="store.seriesCount"
+                       [min]="1" [max]="120" [useGrouping]="false" />
+        <small class="muted">Nos meses sem o dia escolhido, usa-se o último dia do mês.</small>
+      }
+      <p-button type="submit" [label]="store.entryPaymentMethod === 'card' ? 'Registrar compra' :
+                store.entryMode === 'series' ? 'Criar série' :
+                store.entryMode === 'planned' ? 'Planejar lançamento' : 'Registrar lançamento'"
+                [loading]="store.busy()"
+                [disabled]="store.busy()" />
+      @if (store.error()) { <p class="alert inline-feedback" aria-hidden="true">{{ store.error() }}</p> }
+      @if (store.notice()) {
+        <p class="notice inline-feedback" aria-hidden="true">{{ store.notice() }}</p>
+        @if (store.entryPaymentMethod === 'card') {
+          <a routerLink="/cartoes">Ver faturas e parcelas</a>
+        }
+      }
+    </form>
+  </p-card>
+
+  <div class="stack">
+    <div class="filters">
+      <div>
+        <label for="entry-month">Mês de referência</label>
+        <app-date-field inputId="entry-month" name="entry-month" [month]="true"
+                        [(ngModel)]="store.selectedMonth" (ngModelChange)="store.loadEntries()" />
+      </div>
+      <div>
+        <label for="entity-filter">Entidade</label>
+        <select id="entity-filter" name="entity-filter" [(ngModel)]="store.filterEntityId"
+                (ngModelChange)="store.loadEntries()">
+          <option [ngValue]="null">Todas</option>
+          @for (entity of store.counterparties(); track entity.id) {
+            <option [ngValue]="entity.id">{{ entity.name }}</option>
+          }
+        </select>
+      </div>
+    </div>
+
+    @if (!store.entriesLoading() && !store.entriesLoadFailed() && store.monthlySummary(); as summary) {
+      <p-card [header]="'Resumo de ' + monthLabel(store.selectedMonth)">
+        <ul class="summary-list">
+          <li><span>Receitas realizadas</span><strong>{{ money(summary.realizedIncome) }}</strong></li>
+          <li><span>Despesas realizadas</span><strong>{{ money(summary.realizedExpenses) }}</strong></li>
+          <li><span>Resultado realizado</span><strong>{{ money(summary.realizedResult) }}</strong></li>
+          <li><span>Receitas previstas</span><strong>{{ money(summary.plannedIncome) }}</strong></li>
+          <li><span>Despesas previstas</span><strong>{{ money(summary.plannedExpenses) }}</strong></li>
+          <li class="total"><span>Resultado projetado</span><strong>{{ money(summary.projectedResult) }}</strong></li>
+          <li><span>Créditos de estorno gerados</span><strong>{{ money(summary.reversalCreditsGenerated ?? 0) }}</strong></li>
+          <li><span>Créditos aplicados em faturas</span><strong>{{ money(summary.reversalCreditsApplied ?? 0) }}</strong></li>
+        </ul>
+        @if (categoryRows(summary.categoryTotals).length) {
+          <h3>Por categoria</h3>
+          <ul class="summary-list">
+            @for (row of categoryRows(summary.categoryTotals); track row.name) {
+              <li>
+                <span>{{ row.name }}
+                  <small class="badge" [class.inactive]="row.kind === 'DESPESA'">
+                    {{ row.kind === 'RECEITA' ? 'Receita' : 'Despesa' }}
+                  </small>
+                </span>
+                <strong>
+                  {{ row.kind === 'RECEITA' ? '+' : '−' }} {{ money(row.realized) }}
+                  @if (row.planned > 0) {
+                    · previsto {{ row.kind === 'RECEITA' ? '+' : '−' }} {{ money(row.planned) }}
+                  }
+                </strong>
+              </li>
+            }
+          </ul>
+        }
+        @if (summary.necessityTotals?.length) {
+          <h3>Despesas por necessidade</h3>
+          <ul class="summary-list">
+            @for (total of summary.necessityTotals ?? []; track total.necessity) {
+              <li><span>{{ necessityLabel(total.necessity) }} · realizadas</span>
+                  <strong>{{ money(total.realizedExpenses) }}</strong></li>
+              <li><span>{{ necessityLabel(total.necessity) }} · previstas</span>
+                  <strong>{{ money(total.plannedExpenses) }}</strong></li>
+            }
+          </ul>
+        }
+        <small class="muted">Inclui despesas de cartão. Créditos são exibidos à parte, sem alterar o resultado.</small>
+      </p-card>
+    }
+
+    <p-card header="Lançamentos do mês">
+      @if (store.entriesLoading()) {
+        <p role="status">Carregando lançamentos de {{ monthLabel(store.selectedMonth) }}...</p>
+      } @else if (store.entriesLoadFailed()) {
+        <p>Não foi possível carregar este mês.</p>
+        <p-button label="Tentar novamente" severity="secondary" (onClick)="store.loadEntries()" />
+      } @else if (store.entries().length === 0) {
+        <p class="empty">Não há lançamentos neste mês.</p>
+      } @else {
+        <ul class="simple-list">
+          @for (entry of store.entries(); track entry.id) {
+            <li>
+              <span class="list-date">{{ shortDate(entry.occurredOn ?? entry.expectedOn) }}</span>
+              <span class="list-main">
+                 {{ entry.description || 'Sem descrição' }}
+                @if (entry.kind === 'DESPESA') {
+                  <small class="muted">· {{ necessityLabel(entry.necessity) }}</small>
+                }
+                @if (entry.entityName) { <small class="muted">· {{ entry.entityName }}</small> }
+                @if (entry.seriesId) {
+                  <small class="tag">série {{ entry.occurrenceNumber }}/{{ entry.totalOccurrences }}</small>
+                  <p-button label="Ver série" severity="secondary" [text]="true"
+                            (onClick)="openSeries(entry.seriesId)" />
+                }
+                @if (entry.status === 'PREVISTO') { <small class="tag">previsto</small> }
+              </span>
+              <span class="list-amount" [class.income]="entry.kind === 'RECEITA'">
+                {{ entry.kind === 'RECEITA' ? '+' : '−' }} {{ money(entry.amount) }}
+              </span>
+              @if (entry.status === 'PREVISTO') {
+                <p-button label="Editar" severity="secondary" [text]="true"
+                          [disabled]="store.busy()" (onClick)="startEdit(entry)" />
+                <p-button label="Cancelar" severity="secondary" [text]="true"
+                          [disabled]="store.busy()" (onClick)="store.cancelEntry(entry.id)" />
+              }
+              <p-button label="Entidade" severity="secondary" [text]="true"
+                        [disabled]="store.busy()" (onClick)="store.startEntryEntityEdit(entry)" />
+              @if (store.editingEntryEntityId === entry.id) {
+                <form (ngSubmit)="store.saveEntryEntity()" class="form">
+                  <label [for]="'entry-entity-' + entry.id">Entidade do lançamento</label>
+                  <select [id]="'entry-entity-' + entry.id" [name]="'entry-entity-' + entry.id"
+                          [(ngModel)]="store.entryEntitySelection">
+                    <option [ngValue]="null">Sem entidade</option>
+                    @for (entity of store.counterparties(); track entity.id) {
+                      @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
+                    }
+                  </select>
+                  <div class="edit-actions">
+                    <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
+                    <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                              (onClick)="store.editingEntryEntityId = null" />
+                  </div>
+                </form>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </p-card>
+  </div>
+</div>

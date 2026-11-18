@@ -1,0 +1,40 @@
+<section class="auth">
+  @if (store.error()) { <p class="alert" role="alert">{{ store.error() }}</p> }
+  @if (store.notice()) { <p class="notice" role="status">{{ store.notice() }}</p> }
+  <div class="auth-brand">
+    <i class="pi pi-chart-line"></i>
+    <span>Smart Finance</span>
+  </div>
+  <h1>{{ store.mode === 'login' ? 'Entre na sua conta' : 'Crie sua conta' }}</h1>
+  <p class="auth-subtitle">Controle seus saldos, despesas e planos em um só lugar.</p>
+  <p-card>
+    <form (ngSubmit)="submit()" class="form">
+      @if (store.mode === 'register') {
+        <label for="name">Nome</label>
+        <input pInputText id="name" name="name" [(ngModel)]="store.name" required maxlength="120" autocomplete="name" />
+      }
+      <label for="email">Email</label>
+      <input pInputText id="email" name="email" type="email" [(ngModel)]="store.email"
+             required autocomplete="email" />
+      <label for="password">Senha</label>
+      <p-password inputId="password" name="password" [(ngModel)]="store.password"
+                  [feedback]="store.mode === 'register'" [toggleMask]="true"
+                  [autocomplete]="store.mode === 'login' ? 'current-password' : 'new-password'"
+                  [minlength]="store.mode === 'register' ? 12 : 1" required />
+      @if (store.mode === 'register') {
+        <small>Mínimo de 12 caracteres e máximo de 72 bytes UTF-8.</small>
+      }
+      <div class="auth-submit">
+        <p-button type="submit" [label]="store.mode === 'login' ? 'Entrar' : 'Cadastrar'"
+                  [loading]="store.busy()" [disabled]="store.busy()" />
+      </div>
+    </form>
+    <p class="switch">
+      @if (store.mode === 'login') {
+        Ainda não tem conta? <button type="button" (click)="store.switchMode('register')">Cadastre-se</button>
+      } @else {
+        Já tem conta? <button type="button" (click)="store.switchMode('login')">Entrar</button>
+      }
+    </p>
+  </p-card>
+</section>

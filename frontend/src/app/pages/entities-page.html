@@ -1,0 +1,54 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Contrapartes</p>
+    <h1>Entidades</h1>
+    <p class="page-subtitle">Identifique pessoas e estabelecimentos nos seus lançamentos.</p>
+  </div>
+</header>
+
+<div class="grid">
+  <p-card header="Nova entidade">
+    <form (ngSubmit)="store.createCounterparty()" class="form">
+      <label for="counterparty-name">Nome</label>
+      <input pInputText id="counterparty-name" name="counterparty-name"
+             [(ngModel)]="store.counterpartyName" required maxlength="120" />
+      <p-button type="submit" label="Cadastrar entidade" [loading]="store.busy()"
+                [disabled]="!store.counterpartyName.trim()" />
+    </form>
+  </p-card>
+  <section aria-label="Lista de entidades" class="stack">
+    @if (store.counterparties().length === 0) {
+      <p-card><p class="empty">Nenhuma entidade cadastrada.</p></p-card>
+    } @else {
+      <p-card>
+        <ul class="entity-list">
+          @for (entity of store.counterparties(); track entity.id) {
+            <li>
+              <span class="entity-name">{{ entity.name }}</span>
+              <span class="badge" [class.inactive]="!entity.active">{{ entity.active ? 'Ativa' : 'Inativa' }}</span>
+              @if (store.editingEntityId === entity.id) {
+                <form (ngSubmit)="store.renameCounterparty()" class="inline-form">
+                  <label for="entity-rename" class="sr-only">Novo nome</label>
+                  <input pInputText id="entity-rename" name="entity-rename"
+                         [(ngModel)]="store.editingEntityName" required maxlength="120" />
+                  <p-button type="submit" label="Salvar" [loading]="store.busy()"
+                            [disabled]="!store.editingEntityName.trim()" />
+                  <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                            (onClick)="store.editingEntityId = null" />
+                </form>
+              } @else {
+                <p-button label="Renomear" severity="secondary" [text]="true"
+                          [disabled]="store.busy()" (onClick)="store.startRenameEntity(entity)" />
+              }
+              <p-button [label]="entity.active ? 'Desativar' : 'Reativar'"
+                        severity="secondary" [text]="true" [disabled]="store.busy()"
+                        (onClick)="store.setCounterpartyActive(entity.id, !entity.active)" />
+              <p-button label="Excluir" severity="danger" [text]="true"
+                        [disabled]="store.busy()" (onClick)="store.deleteCounterparty(entity.id)" />
+            </li>
+          }
+        </ul>
+      </p-card>
+    }
+  </section>
+</div>

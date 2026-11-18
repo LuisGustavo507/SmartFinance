@@ -1,0 +1,27 @@
+.auth {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+}
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  margin-bottom: 1.5rem;
+  font-size: 1.4rem;
+  font-weight: 800;
+}
+.auth-brand i { color: var(--sf-blue); font-size: 1.6rem; }
+.auth h1 { text-align: center; margin: 0 0 .4rem; font-size: 1.7rem; }
+.auth-subtitle { text-align: center; color: var(--sf-muted); margin: 0 0 1.25rem; }
+.auth .switch { margin: 1rem 0 0; text-align: center; }
+.auth .switch button {
+  border: 0;
+  background: none;
+  color: var(--sf-link);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0 .1rem;
+}
+.auth-submit { display: flex; justify-content: flex-end; }

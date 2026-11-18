@@ -1,0 +1,119 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Visão geral</p>
+    <h1>Olá, {{ store.profile()?.name }}</h1>
+    <p class="page-subtitle">Aqui está o resumo das suas finanças em {{ monthLabel(store.selectedMonth) }}.</p>
+  </div>
+  <div class="page-actions">
+    <p-button routerLink="/lancamentos" label="Novo lançamento" icon="pi pi-plus" />
+    <p-button routerLink="/transferencias" label="Transferir" icon="pi pi-arrows-h"
+              severity="secondary" [outlined]="true" />
+  </div>
+</header>
+
+<section class="balance-hero" aria-label="Saldo total">
+  <div>
+    <span class="hero-label">Saldo estimado total</span>
+    <strong class="hero-value">{{ money(store.totalBalance()) }}</strong>
+    <span class="hero-hint">{{ activeWalletsLabel() }}</span>
+  </div>
+  <i class="pi pi-wallet hero-icon" aria-hidden="true"></i>
+</section>
+
+<div class="stats">
+  <p-card styleClass="stat">
+    <span class="stat-label">Receitas realizadas</span>
+    <strong class="stat-value positive">{{ money(store.monthlySummary()?.realizedIncome ?? 0) }}</strong>
+  </p-card>
+  <p-card styleClass="stat">
+    <span class="stat-label">Despesas realizadas</span>
+    <strong class="stat-value negative">{{ money(store.monthlySummary()?.realizedExpenses ?? 0) }}</strong>
+  </p-card>
+  <p-card styleClass="stat">
+    <span class="stat-label">Resultado projetado</span>
+    <strong class="stat-value">{{ money(store.monthlySummary()?.projectedResult ?? 0) }}</strong>
+    <small>Realizados + previstos do mês</small>
+  </p-card>
+</div>
+
+<div class="two-columns">
+  <p-card header="Últimos lançamentos">
+    @if (store.entries().length === 0) {
+      <p class="empty">Nenhum lançamento em {{ monthLabel(store.selectedMonth) }}.</p>
+      <p-button routerLink="/lancamentos" label="Registrar o primeiro" icon="pi pi-plus"
+                severity="secondary" [text]="true" />
+    } @else {
+      <ul class="simple-list">
+        @for (entry of store.entries().slice(0, 6); track entry.id) {
+          <li>
+            <span class="list-date">{{ shortDate(entry.occurredOn ?? entry.expectedOn) }}</span>
+            <span class="list-main">
+               {{ entry.description || 'Sem descrição' }}
+              @if (entry.status === 'PREVISTO') { <small class="tag">previsto</small> }
+            </span>
+            <span class="list-amount" [class.income]="entry.kind === 'RECEITA'">
+              {{ entry.kind === 'RECEITA' ? '+' : '−' }} {{ money(entry.amount) }}
+            </span>
+          </li>
+        }
+      </ul>
+      <p-button routerLink="/lancamentos" label="Ver todos os lançamentos"
+                severity="secondary" [text]="true" />
+    }
+  </p-card>
+
+  <p-card header="Resumo de {{ monthLabel(store.selectedMonth) }}">
+    <ul class="summary-list">
+      <li><span>Resultado realizado</span><strong>{{ money(store.monthlySummary()?.realizedResult ?? 0) }}</strong></li>
+      <li><span>Receitas previstas</span><strong>{{ money(store.monthlySummary()?.plannedIncome ?? 0) }}</strong></li>
+      <li><span>Despesas previstas</span><strong>{{ money(store.monthlySummary()?.plannedExpenses ?? 0) }}</strong></li>
+      <li class="total"><span>Resultado projetado</span><strong>{{ money(store.monthlySummary()?.projectedResult ?? 0) }}</strong></li>
+      <li><span>Créditos de estorno gerados</span><strong>{{ money(store.monthlySummary()?.reversalCreditsGenerated ?? 0) }}</strong></li>
+      <li><span>Créditos aplicados em faturas</span><strong>{{ money(store.monthlySummary()?.reversalCreditsApplied ?? 0) }}</strong></li>
+    </ul>
+    @if (categoryRows(store.monthlySummary()?.categoryTotals).length) {
+      <h3>Por categoria</h3>
+      <ul class="summary-list">
+        @for (row of categoryRows(store.monthlySummary()?.categoryTotals); track row.name) {
+          <li>
+            <span>{{ row.name }}
+              <small class="badge" [class.inactive]="row.kind === 'DESPESA'">
+                {{ row.kind === 'RECEITA' ? 'Receita' : 'Despesa' }}
+              </small>
+            </span>
+            <strong>
+              {{ row.kind === 'RECEITA' ? '+' : '−' }} {{ money(row.realized) }}
+              @if (row.planned > 0) {
+                · previsto {{ row.kind === 'RECEITA' ? '+' : '−' }} {{ money(row.planned) }}
+              }
+            </strong>
+          </li>
+        }
+      </ul>
+    }
+    @if (store.monthlySummary()?.necessityTotals?.length) {
+      <h3>Despesas por necessidade</h3>
+      <ul class="summary-list">
+        @for (total of store.monthlySummary()?.necessityTotals ?? []; track total.necessity) {
+          <li><span>{{ necessityLabel(total.necessity) }} · realizadas</span>
+              <strong>{{ money(total.realizedExpenses) }}</strong></li>
+          <li><span>{{ necessityLabel(total.necessity) }} · previstas</span>
+              <strong>{{ money(total.plannedExpenses) }}</strong></li>
+        }
+      </ul>
+    }
+    <small class="muted">Inclui despesas de cartão. Créditos são exibidos à parte, sem alterar o resultado.</small>
+  </p-card>
+</div>
+
+<div class="shortcuts-card">
+  <p-card header="Atalhos">
+    <div class="shortcuts">
+      <a routerLink="/carteiras"><i class="pi pi-wallet"></i><span>Carteiras</span></a>
+      <a routerLink="/lancamentos"><i class="pi pi-list"></i><span>Lançamentos</span></a>
+      <a routerLink="/transferencias"><i class="pi pi-arrows-h"></i><span>Transferências</span></a>
+      <a routerLink="/categorias"><i class="pi pi-tags"></i><span>Categorias</span></a>
+      <a routerLink="/entidades"><i class="pi pi-users"></i><span>Entidades</span></a>
+    </div>
+  </p-card>
+</div>

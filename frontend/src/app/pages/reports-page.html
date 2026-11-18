@@ -1,0 +1,94 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Consultas</p>
+    <h1>Relatórios</h1>
+    <p class="page-subtitle">Acompanhe receitas e despesas por entidade ao longo de um período.</p>
+  </div>
+</header>
+
+<p-card header="Período">
+  <div class="filters">
+    <div>
+      <label for="report-from">De</label>
+       <app-date-field inputId="report-from" name="report-from" [month]="true"
+                       [(ngModel)]="store.reportFromMonth" />
+    </div>
+    <div>
+      <label for="report-to">Até</label>
+       <app-date-field inputId="report-to" name="report-to" [month]="true"
+                       [(ngModel)]="store.reportToMonth" />
+    </div>
+    <p-button label="Consultar" [loading]="store.busy()" (onClick)="store.loadEntityPeriodReport()" />
+  </div>
+</p-card>
+
+@if (store.reportLoading()) {
+  <p-card><p role="status">Gerando relatório...</p></p-card>
+} @else if (store.reportLoadFailed()) {
+  <p-card>
+    <p>Não foi possível carregar o relatório para este período.</p>
+    <p-button label="Tentar novamente" severity="secondary"
+              (onClick)="store.loadEntityPeriodReport()" />
+  </p-card>
+} @else if (store.monthlyPoints().length === 0 && !store.entityPeriodReport()) {
+  <p-card>
+    <p class="empty">Escolha um período e consulte para ver os resultados.</p>
+  </p-card>
+}
+
+@if (store.monthlyPoints().length > 0) {
+  <p-card header="Movimento ao longo do tempo">
+    <app-monthly-chart [points]="store.monthlyPoints()"
+                       [from]="store.entityPeriodReport()?.from?.slice(0, 7) ?? ''"
+                       [to]="store.entityPeriodReport()?.to?.slice(0, 7) ?? ''" />
+    <ul class="simple-list">
+      @for (point of store.monthlyPoints(); track point.month) {
+        <li>
+          <span class="list-main">{{ monthLabel(point.month.slice(0, 7)) }}</span>
+          <span class="list-amount">
+            @if (point.realizedIncome > 0) { + {{ money(point.realizedIncome) }} }
+            @if (point.realizedExpenses > 0) { − {{ money(point.realizedExpenses) }} }
+          </span>
+          <small class="muted">
+            Resultado realizado {{ money(point.realizedResult) }}
+            · projetado {{ money(point.projectedResult) }}
+          </small>
+        </li>
+      }
+    </ul>
+  </p-card>
+}
+
+@if (store.entityPeriodReport(); as report) {
+  <p-card [header]="'Por entidade em ' + monthLabel(report.from.slice(0, 7)) + ' a ' + monthLabel(report.to.slice(0, 7))">
+    @if (report.entities.length === 0) {
+      <p class="empty">Nenhum lançamento no período.</p>
+    } @else {
+      <ul class="simple-list">
+        @for (entity of report.entities; track entity.entityId ?? 0) {
+          <li>
+            <span class="list-main">
+              {{ entity.entityName }}
+              @if (entity.entityId === null) { <small class="tag">sem vínculo</small> }
+            </span>
+            <span class="list-amount">
+              @if (entity.realizedIncome > 0) { + {{ money(entity.realizedIncome) }} }
+              @if (entity.realizedExpenses > 0) { − {{ money(entity.realizedExpenses) }} }
+            </span>
+            <small class="muted">
+              @if (entity.plannedIncome > 0) {
+                previsto + {{ money(entity.plannedIncome) }}
+              }
+              @if (entity.plannedExpenses > 0) {
+                previsto − {{ money(entity.plannedExpenses) }}
+              }
+            </small>
+          </li>
+        }
+      </ul>
+      <small class="muted">
+        Créditos de estorno não são distribuídos entre entidades e não entram nestas somas.
+      </small>
+    }
+  </p-card>
+}

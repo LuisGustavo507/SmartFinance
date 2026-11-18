@@ -1,0 +1,73 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Patrimônio</p>
+    <h1>Carteiras</h1>
+    <p class="page-subtitle">Cadastre onde o seu dinheiro fica e acompanhe o saldo estimado de cada conta.</p>
+  </div>
+</header>
+
+<div class="grid">
+  <p-card header="Nova carteira">
+    <form (ngSubmit)="store.createWallet()" class="form">
+      <label for="wallet-name">Nome</label>
+      <input pInputText id="wallet-name" name="wallet-name" [(ngModel)]="store.walletName"
+             required maxlength="120" autocomplete="off" />
+      <label for="wallet-type">Tipo de conta</label>
+      <select id="wallet-type" name="wallet-type" [(ngModel)]="store.walletType">
+        <option value="CARTEIRA_DINHEIRO">Carteira em dinheiro</option>
+        <option value="CONTA_CORRENTE">Conta corrente</option>
+        <option value="POUVANCA">Poupança</option>
+        <option value="CONTA_PAGAMENTO">Conta de pagamento</option>
+        <option value="OUTRA">Outra</option>
+      </select>
+      @if (store.walletType !== 'CARTEIRA_DINHEIRO') {
+        <label for="wallet-institution">Instituição</label>
+        <select id="wallet-institution" name="wallet-institution"
+                [(ngModel)]="store.walletInstitutionChoice" required>
+          <option value="">Selecione</option>
+          @for (institution of store.institutions(); track institution.id) {
+            @if (institution.code !== 'OUTRA') {
+              <option [value]="institution.name">{{ institution.name }}</option>
+            }
+          }
+          <option value="OUTRA">Outra instituição (informar o nome)</option>
+        </select>
+        @if (store.walletInstitutionChoice === 'OUTRA') {
+          <label for="wallet-institution-name">Nome da instituição</label>
+          <input pInputText id="wallet-institution-name" name="wallet-institution-name"
+                 [(ngModel)]="store.walletInstitutionName" maxlength="120" required />
+        }
+      }
+      <label for="balance">Saldo inicial</label>
+       <app-money-field inputId="balance" name="balance" [(ngModel)]="store.initialBalance"
+                        [allowNegative]="true" />
+      <label for="balance-date">Data do saldo inicial</label>
+       <app-date-field inputId="balance-date" name="balance-date"
+                       [(ngModel)]="store.initialBalanceDate" required />
+      <p-button type="submit" label="Criar carteira" [loading]="store.busy()"
+                [disabled]="!store.walletName.trim()" />
+    </form>
+  </p-card>
+  <section aria-label="Lista de carteiras" class="stack">
+    @if (store.wallets().length === 0) {
+      <p-card><p class="empty">Nenhuma carteira cadastrada. Crie a primeira ao lado.</p></p-card>
+    } @else {
+      @for (wallet of store.wallets(); track wallet.id) {
+        <p-card [header]="wallet.name">
+          <div class="wallet-row">
+            <div>
+              <span class="stat-label">Saldo estimado</span>
+              <strong class="wallet-balance">{{ money(wallet.estimatedBalance) }}</strong>
+              <small class="muted">Saldo inicial de {{ money(wallet.initialBalance) }} em {{ shortDate(wallet.initialBalanceDate) }}</small>
+              <small class="muted">
+                {{ typeLabel(wallet.type) }}
+                @if (wallet.institutionName) { · {{ wallet.institutionName }} }
+              </small>
+            </div>
+            <span class="badge" [class.inactive]="!wallet.active">{{ wallet.active ? 'Ativa' : 'Inativa' }}</span>
+          </div>
+        </p-card>
+      }
+    }
+  </section>
+</div>

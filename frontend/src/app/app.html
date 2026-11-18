@@ -1,0 +1,7 @@
+<router-outlet />
+@if (!store.ready()) {
+  <div class="startup" role="status">
+    <i class="pi pi-spin pi-spinner"></i>
+    <span>Carregando suas finanças...</span>
+  </div>
+}

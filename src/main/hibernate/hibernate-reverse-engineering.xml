@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE hibernate-reverse-engineering SYSTEM
+        "https://hibernate.org/dtd/hibernate-reverse-engineering-3.0.dtd">
+<hibernate-reverse-engineering>
+    <type-mapping>
+        <sql-type jdbc-type="DATE" hibernate-type="java.time.LocalDate"/>
+        <sql-type jdbc-type="TIMESTAMP" hibernate-type="java.time.OffsetDateTime"/>
+        <sql-type jdbc-type="OTHER" hibernate-type="java.util.UUID"/>
+    </type-mapping>
+    <schema-selection match-schema="public"/>
+    <table-filter match-name="usuario"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="instituicao_financeira"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="conta_financeira"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="auth_session"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="auth_refresh_token"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="categoria"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="lancamento_financeiro"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="entidade"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="transferencia"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="cartao_credito"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="fatura_cartao"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="compra_cartao"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="parcela_cartao"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="pagamento_fatura"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="credito_estorno"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="aplicacao_credito"
+                  package="project.smartfinance.infrastructure.persistence.generated"/>
+    <table-filter match-name="flyway_schema_history" exclude="true"/>
+    <table name="usuario">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="instituicao_financeira">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="conta_financeira">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="categoria">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="lancamento_financeiro">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="entidade">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="transferencia">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="cartao_credito">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="fatura_cartao">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="compra_cartao">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="parcela_cartao">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="pagamento_fatura">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="credito_estorno">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+    <table name="aplicacao_credito">
+        <primary-key>
+            <generator class="identity"/>
+        </primary-key>
+    </table>
+</hibernate-reverse-engineering>

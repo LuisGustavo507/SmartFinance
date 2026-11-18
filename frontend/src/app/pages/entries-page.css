@@ -1,0 +1,13 @@
+.series-card { margin-bottom: 1.25rem; border-left: 4px solid var(--sf-blue); }
+.edit-card { margin-bottom: 1.25rem; border-left: 4px solid var(--sf-ok); }
+.edit-card .muted { margin-top: 0; }
+.edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .5rem;
+  margin-top: .85rem;
+}
+.edit-actions p-button { margin-top: 0; }
+.inline-feedback { margin: .5rem 0 0; }
+.field-error { color: var(--sf-danger); font-weight: 600; }

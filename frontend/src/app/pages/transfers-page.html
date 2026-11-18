@@ -1,0 +1,71 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Entre contas</p>
+    <h1>Transferências</h1>
+    <p class="page-subtitle">Movimente saldo entre carteiras. Transferências não contam como receita ou despesa.</p>
+  </div>
+</header>
+
+<div class="grid">
+  <p-card header="Registrar transferência">
+    <form (ngSubmit)="store.createTransfer()" class="form">
+      <label for="transfer-source">Origem</label>
+      <select id="transfer-source" name="transfer-source" [(ngModel)]="store.transferSourceId" required>
+        <option [ngValue]="null">Selecione</option>
+        @for (wallet of store.activeWallets(); track wallet.id) {
+          <option [ngValue]="wallet.id">{{ wallet.name }}</option>
+        }
+      </select>
+      <label for="transfer-destination">Destino</label>
+      <select id="transfer-destination" name="transfer-destination" [(ngModel)]="store.transferDestinationId" required>
+        <option [ngValue]="null">Selecione</option>
+        @for (wallet of store.activeWallets(); track wallet.id) {
+          <option [ngValue]="wallet.id">{{ wallet.name }}</option>
+        }
+      </select>
+      <label for="transfer-amount">Valor</label>
+       <app-money-field inputId="transfer-amount" name="transfer-amount"
+                        [(ngModel)]="store.transferAmount" />
+      <label for="transfer-description">Descrição (opcional)</label>
+      <input pInputText id="transfer-description" name="transfer-description"
+             [(ngModel)]="store.transferDescription" maxlength="255" />
+      <label for="transfer-date">Data e hora da transferência (UTC)</label>
+       <app-date-field inputId="transfer-date" name="transfer-date" [time]="true"
+                       [(ngModel)]="store.transferDateTime" required />
+      <p-button type="submit" label="Registrar transferência" [loading]="store.busy()"
+                [disabled]="store.transferSourceId === null || store.transferDestinationId === null
+                  || store.transferSourceId === store.transferDestinationId || store.transferAmount === null" />
+    </form>
+  </p-card>
+
+  <div class="stack">
+    <div>
+      <label for="transfer-month">Mês (UTC)</label>
+       <app-date-field inputId="transfer-month" name="transfer-month" [month]="true"
+                       [(ngModel)]="store.transferMonth" (ngModelChange)="store.loadTransfers()" />
+    </div>
+    <p-card [header]="'Transferências de ' + monthLabel(store.transferMonth)">
+      @if (store.transfersLoading()) {
+        <p role="status">Carregando transferências...</p>
+      } @else if (store.transfersLoadFailed()) {
+        <p>Não foi possível carregar as transferências.</p>
+        <p-button label="Tentar novamente" severity="secondary" (onClick)="store.loadTransfers()" />
+      } @else if (store.transfers().length === 0) {
+        <p class="empty">Não há transferências neste mês.</p>
+      } @else {
+        <ul class="simple-list">
+          @for (transfer of store.transfers(); track transfer.id) {
+            <li>
+              <span class="list-main">
+                {{ store.transferWalletName(transfer.sourceWalletId) }} →
+                {{ store.transferWalletName(transfer.destinationWalletId) }}
+                @if (transfer.description) { <small class="muted">· {{ transfer.description }}</small> }
+              </span>
+              <span class="list-amount">{{ money(transfer.amount) }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </p-card>
+  </div>
+</div>

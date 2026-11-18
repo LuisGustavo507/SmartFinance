@@ -1,0 +1,52 @@
+<a class="skip-link" href="#page-content">Pular para o conteúdo</a>
+<div class="shell">
+  @if (menuOpen()) {
+    <button type="button" class="scrim" aria-label="Fechar menu" (click)="closeMenu()"></button>
+  }
+  <aside class="sidebar" [class.open]="menuOpen()" aria-label="Menu principal">
+    <div class="sidebar-brand">
+      <i class="pi pi-chart-line"></i>
+      <span>Smart Finance</span>
+    </div>
+    <nav class="nav" aria-label="Páginas">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }"
+         (click)="closeMenu()"><i class="pi pi-home"></i><span>Início</span></a>
+      <a routerLink="/carteiras" routerLinkActive="active"
+         (click)="closeMenu()"><i class="pi pi-wallet"></i><span>Carteiras</span></a>
+      <a routerLink="/lancamentos" routerLinkActive="active"
+         (click)="closeMenu()"><i class="pi pi-list"></i><span>Lançamentos</span></a>
+      <a routerLink="/cartoes" routerLinkActive="active"
+         (click)="closeMenu()"><i class="pi pi-credit-card"></i><span>Cartões</span></a>
+      <a routerLink="/transferencias" routerLinkActive="active"
+         (click)="closeMenu()"><i class="pi pi-arrows-h"></i><span>Transferências</span></a>
+      <a routerLink="/categorias" routerLinkActive="active"
+         (click)="closeMenu()"><i class="pi pi-tags"></i><span>Categorias</span></a>
+      <a routerLink="/entidades" routerLinkActive="active"
+         (click)="closeMenu()"><i class="pi pi-users"></i><span>Entidades</span></a>
+      <a routerLink="/relatorios" routerLinkActive="active"
+         (click)="closeMenu()"><i class="pi pi-chart-bar"></i><span>Relatórios</span></a>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user">
+        <i class="pi pi-user"></i>
+        <span>{{ store.profile()?.name }}</span>
+      </div>
+      <p-button label="Sair" icon="pi pi-sign-out" severity="secondary" [text]="true"
+                [disabled]="store.busy()" (onClick)="logout()" />
+    </div>
+  </aside>
+  <div class="content">
+    <header class="mobile-bar">
+      <button type="button" class="menu-button" [attr.aria-expanded]="menuOpen()"
+              aria-label="Abrir menu" (click)="toggleMenu()">
+        <i class="pi" [class.pi-bars]="!menuOpen()" [class.pi-times]="menuOpen()"></i>
+      </button>
+      <span class="mobile-brand"><i class="pi pi-chart-line"></i> Smart Finance</span>
+    </header>
+    @if (store.error()) { <p class="alert content-alert" role="alert">{{ store.error() }}</p> }
+    @if (store.notice()) { <p class="notice content-alert" role="status">{{ store.notice() }}</p> }
+    <main id="page-content" class="page" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+</div>
