@@ -18,6 +18,10 @@ public class SecurityAudit {
         log.info("event=user_registered userId={}", userId);
     }
 
+    public void registrationRejected() {
+        log.warn("event=registration_rejected reason=invite_required");
+    }
+
     public void loginSucceeded(int userId) {
         log.info("event=login_succeeded userId={}", userId);
     }

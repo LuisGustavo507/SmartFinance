@@ -22,6 +22,7 @@
                   [autocomplete]="store.mode === 'login' ? 'current-password' : 'new-password'"
                   [minlength]="store.mode === 'register' ? 12 : 1" required />
       @if (store.mode === 'register') {
+        <small>Beta fechado: use o email que recebeu o convite.</small>
         <small>Mínimo de 12 caracteres e máximo de 72 bytes UTF-8.</small>
       }
       <div class="auth-submit">

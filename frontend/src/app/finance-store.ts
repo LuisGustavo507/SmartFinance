@@ -187,6 +187,9 @@ export class FinanceStore {
         this.error.set('Email ou senha inválidos. Confira os dados e tente novamente.');
       } else if (error instanceof HttpErrorResponse && error.status === 409 && this.mode === 'register') {
         this.error.set('Este email já está cadastrado.');
+      } else if (error instanceof HttpErrorResponse && error.status === 403
+          && this.mode === 'register' && error.error?.code === 'invite_required') {
+        this.error.set('Este email não está na lista de convidados do beta.');
       } else {
         this.error.set(this.message(error, this.mode === 'register'
           ? 'Não foi possível cadastrar.' : 'Não foi possível entrar. Tente novamente.'));

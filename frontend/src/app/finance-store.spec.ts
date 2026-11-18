@@ -79,6 +79,23 @@ describe('FinanceStore', () => {
     expect(store.email).toBe('unknown@example.test');
   });
 
+  it('explains that registration requires an invited email', async () => {
+    store.switchMode('register');
+    store.name = 'Ana';
+    store.email = 'ana@example.test';
+    store.password = 'senha-de-teste-segura';
+    const submission = store.submitAccount();
+    http.expectOne('/api/auth/csrf').flush(null);
+    await Promise.resolve();
+    http.expectOne('/api/auth/register').flush(
+      { code: 'invite_required' },
+      { status: 403, statusText: 'Forbidden' });
+    await submission;
+
+    expect(store.mode).toBe('register');
+    expect(store.error()).toContain('lista de convidados');
+  });
+
   it('distinguishes loading, failure, and empty entries and allows retry', async () => {
     store.selectedMonth = '2026-12';
     const first = store.loadEntries();
