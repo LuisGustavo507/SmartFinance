@@ -1,0 +1,80 @@
+name: smartfinance
+
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-smartfinance}
+      POSTGRES_USER: ${POSTGRES_USER:-smartfinance}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD em deploy/.env}
+      TZ: UTC
+    volumes:
+      # PostgreSQL 18 keeps PGDATA under /var/lib/postgresql/18/docker.
+      - db-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-smartfinance}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-smartfinance}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD em deploy/.env}
+      SMARTFINANCE_JWT_SECRET: ${SMARTFINANCE_JWT_SECRET:?defina SMARTFINANCE_JWT_SECRET em deploy/.env}
+      SMARTFINANCE_COOKIE_SECURE: "true"
+      SMARTFINANCE_INVITE_REQUIRED: ${SMARTFINANCE_INVITE_REQUIRED:-true}
+      SMARTFINANCE_TIME_ZONE: ${SMARTFINANCE_TIME_ZONE:-America/Sao_Paulo}
+      SMARTFINANCE_TRUST_FORWARDED_FOR: "true"
+      SMARTFINANCE_LOGIN_FAILURES: ${SMARTFINANCE_LOGIN_FAILURES:-10}
+      SMARTFINANCE_REGISTER_LIMIT: ${SMARTFINANCE_REGISTER_LIMIT:-5}
+      PORT: "8080"
+      TZ: UTC
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q UP"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 90s
+    networks:
+      - internal
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      SMARTFINANCE_DOMAIN: ${SMARTFINANCE_DOMAIN:?defina SMARTFINANCE_DOMAIN em deploy/.env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    networks:
+      - internal
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  internal:

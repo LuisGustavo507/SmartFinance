@@ -1,0 +1,11 @@
+{$SMARTFINANCE_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		-Server
+	}
+
+	# Caddy sets X-Forwarded-For and X-Forwarded-Proto; the app trusts them
+	# only because it is not reachable except through this proxy.
+	reverse_proxy app:8080
+}

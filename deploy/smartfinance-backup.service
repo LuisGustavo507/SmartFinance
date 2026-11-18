@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup do banco do SmartFinance
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/smartfinance/deploy
+ExecStart=/opt/smartfinance/deploy/backup.sh
+TimeoutStartSec=600

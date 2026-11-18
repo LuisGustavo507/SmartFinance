@@ -1,0 +1,10 @@
+[Unit]
+Description=Backup diário do banco do SmartFinance
+
+[Timer]
+OnCalendar=*-*-* 03:15:00 America/Sao_Paulo
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
