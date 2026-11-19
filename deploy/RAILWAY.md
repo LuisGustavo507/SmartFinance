@@ -18,7 +18,9 @@ no [painel de uso](https://docs.railway.com/pricing/cost-control).
 
 - Plano Hobby contratado **por você**; ele tem mensalidade mínima e pode
   cobrar uso acima da franquia. Configure alerta e limite rígido de gastos.
-  Atingir o limite derruba os serviços; acompanhe o uso real após subir.
+  O mínimo atual para o limite rígido de Compute Usage é US$ 10 por ciclo
+  (confira no painel); atingir esse limite derruba os serviços. Acompanhe
+  o uso real após subir.
 - Repositório GitHub `LuisGustavo507/SmartFinance` atualizado com esta
   preparação. **Conectar um repositório pode iniciar um deploy automaticamente**:
   só faça isso quando concordar em publicar.
