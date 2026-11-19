@@ -241,10 +241,11 @@ Procedimento manual:
 - [x] Build Docker e testes locais; contêiner com `PORT` dinâmico, banco
   iniciando ao mesmo tempo, TLS encaminhado, SPA e readiness validados.
 - [ ] Plano/custos e limite rígido conferidos pelo proprietário da conta.
-- [ ] PostgreSQL privado e persistente, versão conferida; backup nativo
+- [x] PostgreSQL privado e persistente, versão conferida; backup nativo
   indisponível no Hobby.
 - [ ] Serviço web único em HTTPS com segredo JWT privado e uma réplica.
-- [ ] V15 aplicada, readiness `UP`, SPA e API com respostas esperadas.
+- [x] V15 aplicada, readiness `UP`, SPA e API com respostas esperadas.
 - [ ] Cookie `Secure`, headers, rate limit e cadastro por convite validados.
-- [ ] `pg_dump` externo pelo túnel privado e restauração local validados.
+- [x] `pg_dump` externo pelo túnel privado e restauração local validados
+  (18 tabelas restauradas, Flyway até V15).
 - [ ] Primeiros convidados e aprovação visual do usuário antes de abrir o beta.
