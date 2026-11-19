@@ -381,12 +381,14 @@ login só consome cota em falha. Erros saem como `ProblemDetail` com `code`,
 auditoria registra `login_succeeded`, `login_failed`, `logout`,
 `rate_limited`, `registration_rejected`, `user_registered`, entre outros.
 
-HTTPS e cookies `Secure` são obrigatórios em produção. Atrás do Caddy, use
-`SMARTFINANCE_TRUST_FORWARDED_FOR=true`; sem proxy confiável, mantenha
-`false`. Ainda não há verificação de email: quem se cadastrar primeiro com um
-email convidado fica com a conta — mitigado pelo beta pequeno, rate limit e
-auditoria. Rate limit e jobs agendados são por instância; não há coordenação
-entre réplicas.
+HTTPS e cookies `Secure` são obrigatórios em produção. Atrás do Caddy,
+`SMARTFINANCE_TRUST_FORWARDED_FOR=true` usa o cabeçalho que ele sobrescreve.
+Na Railway, `SMARTFINANCE_TRUST_REAL_IP=true` usa `X-Real-IP` definido pela
+borda da plataforma, sem confiar no primeiro `X-Forwarded-For`. Não habilite
+essas opções sem um proxy confiável. Ainda não há verificação de email: quem
+se cadastrar primeiro com um email convidado fica com a conta — mitigado pelo
+beta pequeno, rate limit e auditoria. Rate limit e jobs agendados são por
+instância; não há coordenação entre réplicas.
 
 ### Organização e dados
 
@@ -568,7 +570,7 @@ o bundle inicial fica em torno de 533 kB, acima do padrão de 500 kB, e o
 orçamento local foi elevado para 600 kB. Reduzir dependências do layout
 raiz é uma otimização possível para uma próxima fatia.
 
-Validação atual: 84 testes de integração/unidade do backend e 42 testes
+Validação atual: 86 testes de integração/unidade do backend e 42 testes
 do frontend passaram. Também foram percorridos no navegador, pelo proxy
 local, cadastro → login → home com menu lateral → criação de categoria →
 criação de série pela página de lançamentos (31/01, 28/02, 31/03) →
@@ -654,24 +656,34 @@ O profile `frontend` roda `npm ci` e `npm run build` antes de empacotar
 servida com fallback para `index.html` em rotas do Angular; `/api`,
 `/actuator`, `/error` e caminhos com extensão nunca caem no shell.
 Para executar o jar diretamente, configure antes as variáveis de banco e o
-segredo JWT descritos acima em “Banco local (Docker)”; na Oracle, o Compose
-faz isso via `deploy/.env`.
+segredo JWT descritos acima em “Banco local (Docker)”. Na Railway, essas
+variáveis são configuradas no painel.
 
-Para uma VM da Oracle Cloud Always Free há uma stack Docker Compose com
-PostgreSQL 18, aplicação e Caddy (TLS automático):
+**Hospedagem escolhida: Railway Hobby.** O caminho atual está em
+[deploy/RAILWAY.md](deploy/RAILWAY.md). Um serviço web usa
+`deploy/Dockerfile` com o repositório inteiro como contexto; um serviço
+PostgreSQL separado fornece as credenciais pela rede privada. A Railway
+fornece domínio HTTPS e healthcheck; não se publica Caddy nem se importa
+o Compose para esse ambiente. A criação de serviços e o deploy serão feitos
+separadamente, com autorização e validação do proprietário da conta.
+
+Os arquivos da alternativa antiga para uma VM Oracle Cloud Always Free
+continuam disponíveis como referência, mas **não são usados na Railway**.
+A stack Docker Compose da VM tem PostgreSQL 18, aplicação e Caddy:
 
 - `deploy/compose.yaml`: serviços, rede interna, volumes e healthchecks.
 - `deploy/Dockerfile`: build multi-stage Node → Maven → JRE sem root.
 - `deploy/Caddyfile`: HTTPS e proxy para `app:8080`.
 - `deploy/backup.sh`: `pg_dump` com retenção e escrita atômica.
 - `deploy/.env.example`: variáveis e segredos a preencher.
-- [deploy/ORACLE.md](deploy/ORACLE.md): roteiro de console, firewall, DNS,
-  deploy, convites, backup, restauração, atualizações e checklist de go-live.
+- [deploy/ORACLE.md](deploy/ORACLE.md): roteiro histórico para VM, não
+  aplicável ao deploy Railway.
 
-O banco não publica porta no host, e a aplicação não é acessível fora da rede
-interna do Compose. O rate limit e os jobs agendados são por instância; a
-topologia assume **uma réplica**. O fuso de negócio padrão é
+Na stack antiga, o banco não publica porta no host, e a aplicação só é
+acessível pela rede interna do Compose. Na Railway, apenas o serviço web
+tem domínio público; o banco é privado. O rate limit e os jobs agendados
+são por instância; a topologia assume **uma réplica**. O fuso de negócio é
 `America/Sao_Paulo` (`SMARTFINANCE_TIME_ZONE`).
 Essa stack foi validada localmente com HTTPS em `localhost` (certificado de
 desenvolvimento do Caddy), cadastro, login, backup e restauração. Ainda não
-houve implantação na Oracle nem certificado de domínio público.
+houve implantação na Railway nem certificado de domínio público.

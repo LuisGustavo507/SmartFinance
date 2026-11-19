@@ -1,5 +1,9 @@
 # Implantação na Oracle Cloud Always Free
 
+> **Alternativa arquivada:** a hospedagem escolhida agora é a Railway.
+> Este roteiro permanece apenas como histórico/opção para uma VM futura.
+> Para o caminho atual, veja [RAILWAY.md](RAILWAY.md).
+
 Roteiro para colocar o SmartFinance no ar em uma única VM da Oracle Cloud,
 com PostgreSQL, HTTPS automático e backup diário. A conta, a criação da VM e
 o DNS são feitos por você no console; este repositório entrega os artefatos.

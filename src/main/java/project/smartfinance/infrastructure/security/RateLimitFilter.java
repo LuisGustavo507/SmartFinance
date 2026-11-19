@@ -39,6 +39,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     private final boolean enabled;
     private final boolean trustForwardedFor;
+    private final boolean trustRealIp;
     private final Clock clock;
     private final ObjectMapper objectMapper;
     private final SecurityAudit audit;
@@ -50,6 +51,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
             @Value("${smartfinance.security.rate-limit.enabled:true}") boolean enabled,
             @Value("${smartfinance.security.rate-limit.trust-forwarded-for:false}")
             boolean trustForwardedFor,
+            @Value("${smartfinance.security.rate-limit.trust-real-ip:false}")
+            boolean trustRealIp,
             @Value("${smartfinance.security.rate-limit.login-failures:10}") int loginFailures,
             @Value("${smartfinance.security.rate-limit.login-window:PT15M}") Duration loginWindow,
             @Value("${smartfinance.security.rate-limit.register:5}") int registerLimit,
@@ -61,6 +64,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         this.audit = audit;
         this.enabled = enabled;
         this.trustForwardedFor = trustForwardedFor;
+        this.trustRealIp = trustRealIp;
         this.rules = List.of(
                 new Rule("POST", "/api/auth/login", loginFailures, loginWindow, true),
                 new Rule("POST", "/api/auth/register", registerLimit, registerWindow, false),
@@ -115,6 +119,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
     }
 
     private String clientIp(HttpServletRequest request) {
+        if (trustRealIp) {
+            // Railway sets X-Real-IP at its edge. Do not fall back to the
+            // forwarded chain: clients may supply its leftmost value.
+            String realIp = request.getHeader("X-Real-IP");
+            if (realIp != null) {
+                String value = realIp.strip();
+                if (!value.isEmpty() && value.length() <= 64 && !value.contains(",")) {
+                    return value;
+                }
+            }
+            return "missing-trusted-client-ip";
+        }
         if (trustForwardedFor) {
             String forwarded = request.getHeader("X-Forwarded-For");
             if (forwarded != null && !forwarded.isBlank()) {

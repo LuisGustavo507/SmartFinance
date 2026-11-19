@@ -39,7 +39,7 @@ entidades independentes, lançamentos realizados/previstos/séries,
 transferências, cartões/compras/faturas/pagamento/estorno integral,
 classificação de despesas e resumo mensal por necessidade, categoria e
 entidade, com relatório por período e gráficos ao longo do tempo. Na última
-validação: 84 testes backend, 42 frontend e build Angular; a aprovação
+validação: 86 testes backend, 42 frontend e build Angular; a aprovação
 visual permanece pendente.
 
 ## Etapas restantes
@@ -222,8 +222,9 @@ de instituição no catálogo e lista de instituições pré-cadastradas
 
 Depois do fechamento funcional, os preparativos para a implantação foram
 feitos em fatias pequenas, com testes automatizados e validação em servidor
-local real. A implantação na Oracle ainda depende da VM, do domínio e de
-autorização explícita do usuário.
+local real. A opção original de VM Oracle foi substituída pela Railway Hobby,
+cuja contratação será feita pelo usuário. A implantação ainda depende de
+configuração na conta Railway e autorização explícita para publicar.
 
 | Etapa | Estado | Evidência |
 |---|---|---|
@@ -233,14 +234,16 @@ autorização explícita do usuário.
 | 4. Fuso de negócio | VALIDADA | Relógio e jobs em `America/Sao_Paulo` configurável, timestamps persistidos/JWT em UTC; validado com `TZ=UTC`. Commit `2ef07ff`. |
 | 5. Beta fechado | VALIDADA | Lista `convite_beta` (V15), consumo atômico no cadastro, `403 invite_required`, auditoria `registration_rejected` e aviso no frontend; validado em servidor local. Commit `0d68688`. |
 | 6. Frontend no jar | VALIDADA | Build Angular copiado para `static`, profile `frontend`, fallback de rotas da SPA, API/actuator/error protegidos; jar validado em servidor local. Commit `b88d621`. |
-| 7. Empacotamento e deploy | VALIDADA LOCALMENTE | Dockerfile multi-stage, Compose com PostgreSQL 18 + Caddy, backup/restauração e roteiro Oracle; stack local validada com HTTPS. Commit `d5cdf5d`. |
-| 8. Documentação e checklist | VALIDADA LOCALMENTE | README e este plano atualizados; checklist de go-live em `deploy/ORACLE.md`. |
+| 7. Empacotamento e deploy (VM) | VALIDADA LOCALMENTE, ALTERNATIVA ARQUIVADA | Dockerfile multi-stage, Compose com PostgreSQL 18 + Caddy, backup/restauração e roteiro Oracle; stack local validada com HTTPS. Commit `d5cdf5d`. |
+| 8. Documentação e checklist (VM) | VALIDADA LOCALMENTE, ATUALIZADA PARA RAILWAY | README e este plano atualizados; roteiro VM em `deploy/ORACLE.md`. |
+| 9. Adaptação Railway | VALIDADA LOCALMENTE | Reutilizar Dockerfile, serviço PostgreSQL privado, TLS da plataforma e healthcheck; rate limit com `X-Real-IP` e testes contra spoof de `X-Forwarded-For`; imagem validada com `PORT` dinâmico e banco em inicialização. Roteiro e checklist em `deploy/RAILWAY.md`. Sem serviços criados ou deploy. |
 
-A topologia assume uma réplica: rate limit e jobs agendados são por instância.
-O PostgreSQL não publica porta no host e a aplicação só é alcançável pela rede
-interna do Compose, atrás do Caddy.
-Os itens de go-live, inclusive certificado de domínio público e backup
-externo, só podem ser marcados após implantação autorizada na Oracle.
+A topologia atual assume uma réplica: rate limit e jobs agendados são por
+instância. Na Railway, só o serviço web terá domínio público; o PostgreSQL
+fica na rede privada. A alternativa de VM usa rede interna do Compose/Caddy.
+Os itens de go-live, inclusive domínio HTTPS público, conexão privada com
+o banco e backup externo, só podem ser marcados após implantação autorizada
+na Railway.
 
 ### Cuidado de execução
 
@@ -254,6 +257,6 @@ antigo.
 
 As etapas funcionais foram implementadas e validadas. A V1 está preparada
 localmente para produção, mas não foi publicada; faltam a implantação
-autorizada na Oracle, a conferência do checklist de go-live e a **avaliação
+autorizada na Railway, a conferência do checklist de go-live e a **avaliação
 visual do usuário**. Novas entradas de escopo devem ser adicionadas a este
 arquivo antes de virar fatia.
