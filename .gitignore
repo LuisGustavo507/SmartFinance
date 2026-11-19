@@ -40,6 +40,11 @@ application-local.properties
 application-local.yml
 application-local.yaml
 
+### Database backups ###
+*.dump
+*.dump.sha256
+*.dump.gpg
+
 ### Logs and runtime artifacts ###
 *.log
 logs/

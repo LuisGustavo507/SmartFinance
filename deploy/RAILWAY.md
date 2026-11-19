@@ -1,8 +1,9 @@
 # Implantação na Railway — beta fechado
 
-Este roteiro **não executa a implantação**. Só prossiga depois de autorizar a
-publicação e revisar o custo no painel. A arquitetura é um serviço web
-(Spring Boot + Angular no mesmo jar) e um serviço PostgreSQL da Railway. A
+Este roteiro descreve a implantação e serve de referência para recriar ou
+auditar o ambiente. O beta fechado **já está publicado** na Railway; a
+arquitetura é um serviço web (Spring Boot + Angular no mesmo jar) e um
+serviço PostgreSQL da Railway. A
 Railway termina o HTTPS e fornece o domínio; **não** importe
 `deploy/compose.yaml` nem crie serviços Caddy ou PostgreSQL a partir de uma
 imagem Docker. Esses arquivos são da implantação antiga em VM.
@@ -22,9 +23,9 @@ está incluído no Hobby). Confirme os preços atuais no
   O mínimo atual para o limite rígido de Compute Usage é US$ 10 por ciclo
   (confira no painel); atingir esse limite derruba os serviços. Acompanhe
   o uso real após subir.
-- Repositório GitHub `LuisGustavo507/SmartFinance` atualizado com esta
-  preparação. **Conectar um repositório pode iniciar um deploy automaticamente**:
-  só faça isso quando concordar em publicar.
+- Repositório GitHub `LuisGustavo507/SmartFinance` conectado ao serviço web.
+  **Um push na branch de deploy pode iniciar um deploy automaticamente**:
+  considere isso antes de publicar commits.
 - Um único ambiente de produção e **uma réplica** do app. Rate limit e jobs
   agendados ficam em memória/por instância.
 - Segredo JWT novo, com pelo menos 32 bytes de entropia. Gere localmente com
@@ -42,10 +43,10 @@ está incluído no Hobby). Confirme os preços atuais no
    tabelas à mão e não importe o banco local de testes.
 4. O plano **Hobby não inclui backups nativos** da Railway. Não dependa do
    botão de backup do painel nem habilite Public Access para contornar isso.
-   A cópia de segurança será externa, com `pg_dump` pelo túnel privado do
-   CLI, conforme a seção [Backup externo](#backup-externo).
-   Antes de convidar pessoas reais, faça o primeiro dump e ensaie a
-   restauração em um banco local isolado.
+   A cópia de segurança é externa, com `pg_dump` pelo túnel privado do CLI,
+   conforme [RAILWAY_BACKUP.md](RAILWAY_BACKUP.md). O primeiro dump e o
+   ensaio de restauração em banco local já foram validados; repita o backup
+   antes de cada migration ou deploy relevante.
 
 ## 2. Serviço web (no painel Railway)
 
@@ -100,9 +101,9 @@ está incluído no Hobby). Confirme os preços atuais no
 > painel; caso se justifique depois, migre para `.railway/railway.ts` (IaC)
 > com revisão explícita do plano antes de aplicar.
 
-## 3. Validação antes dos convites
+## 3. Validação do ambiente
 
-No domínio gerado (substitua a URL):
+Repita esta checagem depois de cada deploy. No domínio gerado:
 
 ```bash
 BASE=https://seu-app.up.railway.app
@@ -116,10 +117,12 @@ Esperado: health `UP`, `/` e `/carteiras` com `200`, API sem sessão
 com `401` JSON, cookies `Secure` depois do CSRF/login. Faça um cadastro com
 email não convidado (`403 invite_required`) e, após inserir um email de
 teste na lista, cadastro, login e consulta de carteira. Teste também no
-navegador real, inclusive recarregar a rota `/carteiras`. Confirme que o
-rate limit não é contornado enviando diferentes `X-Forwarded-For`; se a
-Railway não fornecer `X-Real-IP` como previsto, **não convide usuários**:
-investigue o proxy primeiro.
+navegador real, inclusive recarregar a rota `/carteiras`. O rate limit é de
+5 cadastros por hora por IP e conta tentativas que falham; testes via `curl`
+consomem a mesma cota do navegador naquele IP. Confirme que ele não é
+contornado enviando diferentes `X-Forwarded-For`; se a Railway não fornecer
+`X-Real-IP` como previsto, **não convide usuários**: investigue o proxy
+primeiro.
 
 ### Inserir um convite sem publicar o banco
 
@@ -138,86 +141,37 @@ para administrar convites.
 
 ## Backup externo
 
-O Hobby não oferece backup gerenciado. A estratégia é copiar o banco para
-fora da Railway usando o túnel privado do CLI, sem publicar a porta do
-PostgreSQL. Isso ainda **não foi validado** contra a Railway; valide logo
-depois que o app subir e antes do primeiro convite.
+O Hobby não oferece backup gerenciado. O banco é copiado para fora da
+Railway pelo túnel privado do CLI, sem publicar a porta do PostgreSQL. O
+processo foi **validado em 2026-11-19**: um dump de 68 KB foi restaurado em
+um PostgreSQL local isolado, com 18 tabelas e Flyway até a V15.
 
-Pré-requisitos no seu computador:
+O procedimento completo está em
+[RAILWAY_BACKUP.md](RAILWAY_BACKUP.md): pré-requisitos, instalação,
+restauração de teste, criptografia, agendamento e solução de problemas. O
+script correspondente é [railway-backup.sh](railway-backup.sh):
 
-- Railway CLI autenticado (`railway login`) e projeto vinculado
-  (`railway link`, ambiente de produção).
-- Cliente PostgreSQL com `pg_dump`/`pg_restore` na mesma versão major do
-  servidor (18, se for a versão escolhida). O `psql` também é necessário
-  para `railway connect`.
-- Espaço local e uma cópia externa (disco ou armazenamento em nuvem) para
-  guardar os dumps. Não coloque dumps nem credenciais no Git.
+```bash
+cd /caminho/do/SmartFinance
+./deploy/railway-backup.sh
+```
 
-Procedimento manual:
+O script lê `PGUSER`, `PGPASSWORD` e `PGDATABASE` do serviço `Postgres` com
+`railway variable list --json` sem imprimir os valores, abre o túnel em
+`127.0.0.1:5433`, espera uma conexão TCP real, gera o dump custom, valida com
+`pg_restore --list`, grava o `.sha256` e fecha o túnel ao final (inclusive em
+caso de erro).
 
-1. No terminal A, abra o túnel e mantenha-o aberto:
+Continua sendo responsabilidade sua:
 
-   ```bash
-   railway connect Postgres --ssh --tunnel-only -P 5433
-   ```
+- manter os dumps fora do repositório, com permissão `600`, e uma cópia
+  criptografada fora da máquina;
+- testar a restauração periodicamente em banco local isolado, **nunca** no
+  banco de produção;
+- agendar a execução com `cron`/systemd em uma máquina ligada ou um runner
+  externo — o Hobby não agenda isso.
 
-   O comando imprime os dados de conexão locais. Não cole essa saída no
-   chat. Se a porta 5433 estiver ocupada, use outra.
-
-2. No terminal B, com o túnel aberto, carregue a URL impressa sem deixá-la
-   no histórico (ou use `.pgpass`) e gere o dump:
-
-   ```bash
-   read -r -s -p 'URL do túnel: ' SMARTFINANCE_PG_URL; echo
-   DUMP="smartfinance-$(date +%F-%H%M).dump"
-   pg_dump "$SMARTFINANCE_PG_URL" \
-     --format=custom --no-owner --no-privileges --file="$DUMP"
-   pg_restore --list "$DUMP" | head
-   ```
-
-3. Confira o tamanho, guarde uma cópia fora do projeto e remova dumps
-   antigos conforme sua retenção. Feche o túnel no terminal A com `Ctrl+C`.
-
-4. Ensaie a restauração em um PostgreSQL local isolado, **nunca** no banco
-   de produção. A imagem oficial inicializa em duas etapas: o servidor
-   temporário da primeira etapa não escuta TCP, mas `docker exec pg_isready`
-   pode responder cedo demais. Espere uma conexão TCP real antes do restore;
-   caso contrário, o `pg_restore` pode coincidir com o desligamento do
-   servidor temporário.
-
-   ```bash
-   docker rm -f sf-restore-check 2>/dev/null || true
-   docker run -d --name sf-restore-check \
-     -e POSTGRES_PASSWORD=local-only -e POSTGRES_DB=smartfinance \
-     -p 127.0.0.1:55432:5432 postgres:18-alpine
-
-   ready=0
-   for i in $(seq 1 60); do
-     if PGPASSWORD=local-only psql -h 127.0.0.1 -p 55432 -U postgres \
-       -d smartfinance -c 'select 1' >/dev/null 2>&1; then
-       ready=1
-       break
-     fi
-     sleep 1
-   done
-   if [ "$ready" != 1 ]; then
-     docker logs sf-restore-check | tail -40
-     exit 1
-   fi
-
-   PGPASSWORD=local-only pg_restore --clean --if-exists --no-owner \
-     --no-privileges -h 127.0.0.1 -p 55432 -U postgres \
-     -d smartfinance "$DUMP"
-   PGPASSWORD=local-only psql -h 127.0.0.1 -p 55432 -U postgres \
-     -d smartfinance \
-     -c 'select version, description, success from flyway_schema_history order by installed_rank desc limit 3;'
-   docker rm -f sf-restore-check
-   ```
-
-5. Depois de validar, defina a frequência. O Hobby não agenda isso: use
-   `cron`/timer no seu computador enquanto ele estiver ligado ou um runner
-   externo, sempre pelo túnel privado. Um backup só é útil se a restauração
-   também for testada.
+Não habilite **Public Access / TCP Proxy** no banco para fazer backup.
 
 ## 4. Operação e go-live
 
@@ -225,27 +179,28 @@ Procedimento manual:
   Os builds são gratuitos, mas app, banco, volume e tráfego geram uso.
 - Healthcheck da Railway confirma a subida de um deploy; **não é monitor
   contínuo**. Configure alertas de falha/custo e confira o health após updates.
-- Antes de convidar pessoas reais, faça o primeiro `pg_dump` externo pelo
-  túnel privado e ensaie a restauração em banco local isolado, sem
-  substituir o de produção. O Hobby **não tem backup automático**; a cópia
-  externa é responsabilidade sua. **Não use o botão Restore no banco ativo
-  para fazer esse ensaio**, mesmo que ele apareça no painel.
+- O primeiro `pg_dump` externo e o ensaio de restauração em banco local já
+  foram feitos (veja [RAILWAY_BACKUP.md](RAILWAY_BACKUP.md)). Repita o backup
+  antes de cada migration ou deploy relevante: o Hobby **não tem backup
+  automático**. **Não use o botão Restore no banco ativo** para ensaiar
+  restauração, mesmo que ele apareça no painel.
 - Para atualizações, preserve o banco e o segredo JWT, rode a suíte local,
   revise migrations, faça backup, publique o commit aprovado e confira
   logs/health/fluxos. Mudança do JWT desloga usuários.
 - Não habilite escalonamento horizontal: os jobs e o rate limit não têm
   coordenação entre réplicas.
 
-### Checklist (ainda pendente de validação na Railway)
+### Checklist de go-live
 
 - [x] Build Docker e testes locais; contêiner com `PORT` dinâmico, banco
   iniciando ao mesmo tempo, TLS encaminhado, SPA e readiness validados.
-- [ ] Plano/custos e limite rígido conferidos pelo proprietário da conta.
+- [x] Plano/custos e limite rígido conferidos pelo proprietário da conta.
 - [x] PostgreSQL privado e persistente, versão conferida; backup nativo
   indisponível no Hobby.
-- [ ] Serviço web único em HTTPS com segredo JWT privado e uma réplica.
+- [x] Serviço web único em HTTPS com segredo JWT privado e uma réplica.
 - [x] V15 aplicada, readiness `UP`, SPA e API com respostas esperadas.
-- [ ] Cookie `Secure`, headers, rate limit e cadastro por convite validados.
+- [x] Cookie `Secure`, headers, rate limit e cadastro por convite validados
+  (cadastro de teste concluído em aparelho com outro IP).
 - [x] `pg_dump` externo pelo túnel privado e restauração local validados
   (18 tabelas restauradas, Flyway até V15).
 - [ ] Primeiros convidados e aprovação visual do usuário antes de abrir o beta.

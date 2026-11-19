@@ -659,13 +659,25 @@ Para executar o jar diretamente, configure antes as variáveis de banco e o
 segredo JWT descritos acima em “Banco local (Docker)”. Na Railway, essas
 variáveis são configuradas no painel.
 
-**Hospedagem escolhida: Railway Hobby.** O caminho atual está em
+**Hospedagem: Railway Hobby, em beta fechado.** O roteiro está em
 [deploy/RAILWAY.md](deploy/RAILWAY.md). Um serviço web usa
 `deploy/Dockerfile` com o repositório inteiro como contexto; um serviço
 PostgreSQL separado fornece as credenciais pela rede privada. A Railway
 fornece domínio HTTPS e healthcheck; não se publica Caddy nem se importa
-o Compose para esse ambiente. A criação de serviços e o deploy serão feitos
-separadamente, com autorização e validação do proprietário da conta.
+o Compose para esse ambiente.
+
+O beta está publicado em
+`https://web-production-ca666356.up.railway.app`, com health `UP`, SPA e API
+respondendo, cookies `Secure`, rate limit ativo e cadastro restrito à lista
+`convite_beta`. Os convites são inseridos pelo túnel privado do CLI, sem
+expor o banco.
+
+O Hobby não tem backup gerenciado. O backup externo foi validado em
+2026-11-19 (dump restaurado em PostgreSQL local isolado, 18 tabelas, Flyway
+até a V15). O processo completo, a restauração de teste e o agendamento estão
+em [deploy/RAILWAY_BACKUP.md](deploy/RAILWAY_BACKUP.md); o script é
+`deploy/railway-backup.sh` e usa `pg_dump` pelo túnel privado, valida o
+arquivo, grava o checksum e aplica retenção.
 
 Os arquivos da alternativa antiga para uma VM Oracle Cloud Always Free
 continuam disponíveis como referência, mas **não são usados na Railway**.
@@ -685,5 +697,6 @@ tem domínio público; o banco é privado. O rate limit e os jobs agendados
 são por instância; a topologia assume **uma réplica**. O fuso de negócio é
 `America/Sao_Paulo` (`SMARTFINANCE_TIME_ZONE`).
 Essa stack foi validada localmente com HTTPS em `localhost` (certificado de
-desenvolvimento do Caddy), cadastro, login, backup e restauração. Ainda não
-houve implantação na Railway nem certificado de domínio público.
+desenvolvimento do Caddy), cadastro, login, backup e restauração. Ela não é
+usada no ambiente atual: a produção roda na Railway com HTTPS público da
+plataforma.

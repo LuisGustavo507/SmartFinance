@@ -223,8 +223,8 @@ de instituição no catálogo e lista de instituições pré-cadastradas
 Depois do fechamento funcional, os preparativos para a implantação foram
 feitos em fatias pequenas, com testes automatizados e validação em servidor
 local real. A opção original de VM Oracle foi substituída pela Railway Hobby,
-cuja contratação será feita pelo usuário. A implantação ainda depende de
-configuração na conta Railway e autorização explícita para publicar.
+contratada e configurada pelo proprietário da conta. A publicação foi
+autorizada e o beta fechado está em produção.
 
 | Etapa | Estado | Evidência |
 |---|---|---|
@@ -236,14 +236,19 @@ configuração na conta Railway e autorização explícita para publicar.
 | 6. Frontend no jar | VALIDADA | Build Angular copiado para `static`, profile `frontend`, fallback de rotas da SPA, API/actuator/error protegidos; jar validado em servidor local. Commit `b88d621`. |
 | 7. Empacotamento e deploy (VM) | VALIDADA LOCALMENTE, ALTERNATIVA ARQUIVADA | Dockerfile multi-stage, Compose com PostgreSQL 18 + Caddy, backup/restauração e roteiro Oracle; stack local validada com HTTPS. Commit `d5cdf5d`. |
 | 8. Documentação e checklist (VM) | VALIDADA LOCALMENTE, ATUALIZADA PARA RAILWAY | README e este plano atualizados; roteiro VM em `deploy/ORACLE.md`. |
-| 9. Adaptação Railway | VALIDADA LOCALMENTE | Reutilizar Dockerfile, serviço PostgreSQL privado, TLS da plataforma e healthcheck; rate limit com `X-Real-IP` e testes contra spoof de `X-Forwarded-For`; imagem validada com `PORT` dinâmico e banco em inicialização. Roteiro e checklist em `deploy/RAILWAY.md`. Sem serviços criados ou deploy. |
+| 9. Adaptação Railway | VALIDADA LOCALMENTE | Reutilizar Dockerfile, serviço PostgreSQL privado, TLS da plataforma e healthcheck; rate limit com `X-Real-IP` e testes contra spoof de `X-Forwarded-For`; imagem validada com `PORT` dinâmico e banco em inicialização. Roteiro e checklist em `deploy/RAILWAY.md`. |
+| 10. Deploy e backup externo (Railway) | VALIDADA EM PRODUÇÃO | Beta fechado em `https://web-production-ca666356.up.railway.app`: health `UP`, `/`, `/login` e `/carteiras` com `200`, API sem sessão `401`, HSTS e cookies `Secure`; rate limit de 5 cadastros/hora por IP; cadastro por convite concluído em teste. PostgreSQL 18 privado, V15 aplicada. `pg_dump` externo pelo túnel SSH do CLI gerou dump de 68 KB, validado com `pg_restore --list` e restaurado em PostgreSQL local isolado (18 tabelas, Flyway até V15). Script `deploy/railway-backup.sh` e processo em `deploy/RAILWAY_BACKUP.md`. |
 
 A topologia atual assume uma réplica: rate limit e jobs agendados são por
-instância. Na Railway, só o serviço web terá domínio público; o PostgreSQL
+instância. Na Railway, só o serviço web tem domínio público; o PostgreSQL
 fica na rede privada. A alternativa de VM usa rede interna do Compose/Caddy.
-Os itens de go-live, inclusive domínio HTTPS público, conexão privada com
-o banco e backup externo, só podem ser marcados após implantação autorizada
-na Railway.
+O domínio HTTPS público, a conexão privada com o banco e o backup externo
+foram validados em produção; falta apenas a aprovação visual do proprietário
+e o envio gradual dos convites reais.
+
+O backup não é automático no Hobby. O script `deploy/railway-backup.sh`
+precisa rodar em uma máquina com o CLI autenticado, por `cron`/systemd ou um
+runner externo; a restauração deve ser testada periodicamente.
 
 ### Cuidado de execução
 
@@ -255,8 +260,8 @@ antigo.
 
 ## Encerramento
 
-As etapas funcionais foram implementadas e validadas. A V1 está preparada
-localmente para produção, mas não foi publicada; faltam a implantação
-autorizada na Railway, a conferência do checklist de go-live e a **avaliação
-visual do usuário**. Novas entradas de escopo devem ser adicionadas a este
-arquivo antes de virar fatia.
+As etapas funcionais foram implementadas e validadas. A V1 está publicada na
+Railway em beta fechado, com banco privado, backup externo validado e
+cadastro por convite. Faltam a **avaliação visual do usuário** e o envio
+gradual dos convites reais. Novas entradas de escopo devem ser adicionadas
+a este arquivo antes de virar fatia.
