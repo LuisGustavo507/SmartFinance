@@ -179,15 +179,37 @@ Procedimento manual:
    antigos conforme sua retenção. Feche o túnel no terminal A com `Ctrl+C`.
 
 4. Ensaie a restauração em um PostgreSQL local isolado, **nunca** no banco
-   de produção:
+   de produção. A imagem oficial inicializa em duas etapas: o servidor
+   temporário da primeira etapa não escuta TCP, mas `docker exec pg_isready`
+   pode responder cedo demais. Espere uma conexão TCP real antes do restore;
+   caso contrário, o `pg_restore` pode coincidir com o desligamento do
+   servidor temporário.
 
    ```bash
-   docker run --rm -d --name sf-restore-check \
+   docker rm -f sf-restore-check 2>/dev/null || true
+   docker run -d --name sf-restore-check \
      -e POSTGRES_PASSWORD=local-only -e POSTGRES_DB=smartfinance \
      -p 127.0.0.1:55432:5432 postgres:18-alpine
-   pg_restore --clean --if-exists --no-owner --no-privileges \
-     -h 127.0.0.1 -p 55432 -U postgres -d smartfinance "$DUMP"
-   psql -h 127.0.0.1 -p 55432 -U postgres -d smartfinance \
+
+   ready=0
+   for i in $(seq 1 60); do
+     if PGPASSWORD=local-only psql -h 127.0.0.1 -p 55432 -U postgres \
+       -d smartfinance -c 'select 1' >/dev/null 2>&1; then
+       ready=1
+       break
+     fi
+     sleep 1
+   done
+   if [ "$ready" != 1 ]; then
+     docker logs sf-restore-check | tail -40
+     exit 1
+   fi
+
+   PGPASSWORD=local-only pg_restore --clean --if-exists --no-owner \
+     --no-privileges -h 127.0.0.1 -p 55432 -U postgres \
+     -d smartfinance "$DUMP"
+   PGPASSWORD=local-only psql -h 127.0.0.1 -p 55432 -U postgres \
+     -d smartfinance \
      -c 'select version, description, success from flyway_schema_history order by installed_rank desc limit 3;'
    docker rm -f sf-restore-check
    ```
