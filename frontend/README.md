@@ -30,7 +30,11 @@ No lançamento e na compra no cartão há um campo para cadastrar a entidade
 junto com o registro, sem sair da tela. A ação "Entidade" corrige o vínculo
 de um lançamento ou de uma compra já registrada, sem alterar valores.
 O registro de compras fica no formulário de Lançamentos: selecionando
-“Cartão de crédito” surgem cartão e parcelas. Cartões concentra cadastro e
+“Cartão de crédito” surgem cartão, modo do valor e parcelas. O valor informado
+pode ser o total da compra (dividido entre as parcelas) ou o valor de cada
+parcela (multiplicado pelo número a registrar). Para importar somente parcelas
+restantes, a data indica o ciclo da primeira fatura restante; parcelas anteriores
+não são recriadas e a numeração local começa em 1/N. Cartões concentra cadastro e
 configuração; Faturas permite selecionar cartão (inclusive inativo, para
 consultar o histórico) e mês, ver os gastos ativos e o total bruto fornecido
 pela API, com cancelamentos/estornos em seção separada. Faturas fechadas,

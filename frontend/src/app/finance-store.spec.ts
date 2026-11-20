@@ -822,6 +822,49 @@ describe('FinanceStore', () => {
     expect(store.notice()).toContain('Compra registrada');
   });
 
+  it('calculates the total from the installment value and preserves the form after a failed request', async () => {
+    await authenticate({
+      cards: [{ id: 3, ownerUserId: 1, name: 'Cartão Gold', institutionName: 'Banco Teste',
+        closingDay: 5, dueDay: 14, creditLimit: null, defaultPaymentWalletId: null,
+        active: true }],
+      categories: [{ id: 4, ownerUserId: 1, name: 'Mercado', kind: 'DESPESA', active: true }]
+    });
+    store.entryPaymentMethod = 'card';
+    store.entryCategoryId = 4;
+    store.entryNecessity = 'NECESSARIA';
+    store.purchaseCardId = 3;
+    store.entryAmount = 50;
+    store.purchaseInstallments = 3;
+    store.purchaseAmountMode = 'installment';
+    store.entryDate = '2026-11-05';
+    expect(store.cardPurchaseTotal()).toBe(150);
+
+    const registration = store.createEntry();
+    http.expectOne('/api/auth/csrf').flush(null);
+    await Promise.resolve();
+    const request = http.expectOne('/api/card-purchases');
+    expect(request.request.body).toMatchObject({
+      amount: 150, installments: 3, purchasedOn: '2026-11-05'
+    });
+    request.flush(null, { status: 503, statusText: 'Unavailable' });
+    await registration;
+    expect(store.entryAmount).toBe(50);
+    expect(store.purchaseInstallments).toBe(3);
+    expect(store.purchaseAmountMode).toBe('installment');
+    expect(store.error()).not.toBe('');
+
+    store.purchaseAmountMode = 'total';
+    expect(store.cardPurchaseTotal()).toBe(50);
+    store.purchaseAmountMode = 'installment';
+    store.entryAmount = 0.1;
+    expect(store.cardPurchaseTotal()).toBe(0.3);
+    store.entryAmount = 1e15;
+    expect(store.cardPurchaseTotal()).toBeNull();
+    store.entryAmount = 50;
+    store.purchaseInstallments = 2.5;
+    expect(store.cardPurchaseTotal()).toBeNull();
+  });
+
   it('keeps a saved card purchase confirmed when refreshing statements fails', async () => {
     await authenticate({
       cards: [{ id: 3, ownerUserId: 1, name: 'Cartão Gold',

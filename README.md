@@ -201,6 +201,12 @@ e ativa) e necessidade `NECESSARIA`, `NEUTRA` ou `FUTIL`. O total é distribuíd
 em centavos: cada parcela recebe o quociente inteiro e os centavos restantes
 vão, um a um, às primeiras parcelas; a quantidade de parcelas não pode
 exceder o total em centavos, para que nenhuma parcela fique zerada.
+Na tela Lançamentos, o usuário escolhe se digitou o valor total da compra ou
+o valor de cada parcela. No segundo caso, a tela calcula o total multiplicando
+o valor da parcela pelo número de parcelas a registrar antes de enviar à API;
+o backend continua recebendo o valor total. Para cadastrar só parcelas
+restantes, a data determina o ciclo da primeira parcela registrada, sem
+recriar parcelas passadas, e a numeração local começa em 1/N.
 
 A fatura que recebe a compra é a que **fecha no primeiro dia de fechamento
 posterior à data da compra**; o vencimento é o dia de vencimento do

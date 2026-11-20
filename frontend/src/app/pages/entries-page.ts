@@ -24,6 +24,7 @@ export class EntriesPage {
   readonly shortDate = shortDate;
   readonly necessityLabel = necessityLabel;
   readonly categoryRows = categoryRows;
+  readonly numberIsInteger = Number.isInteger;
   attempted = false;
 
   occurrencesLabel(): string {

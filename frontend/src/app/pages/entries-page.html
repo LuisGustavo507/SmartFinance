@@ -194,27 +194,61 @@
       <label for="entry-description">Descrição (opcional)</label>
       <input pInputText id="entry-description" name="entry-description"
              [(ngModel)]="store.entryDescription" maxlength="255" />
-      <label for="entry-amount">Valor</label>
+      @if (store.entryPaymentMethod === 'card') {
+        <label for="purchase-amount-mode">O valor informado é</label>
+        <select id="purchase-amount-mode" name="purchase-amount-mode"
+                [(ngModel)]="store.purchaseAmountMode">
+          <option value="total">Valor total da compra</option>
+          <option value="installment">Valor de cada parcela</option>
+        </select>
+      }
+      <label for="entry-amount">{{ store.entryPaymentMethod === 'card' ?
+        (store.purchaseAmountMode === 'total' ? 'Valor total da compra' : 'Valor de cada parcela') :
+        'Valor' }}</label>
       <app-money-field inputId="entry-amount" name="entry-amount" [(ngModel)]="store.entryAmount" />
       @if (attempted && (store.entryAmount === null || store.entryAmount <= 0)) {
         <small class="field-error">Informe um valor maior que zero.</small>
       }
-      <label for="entry-date">{{ store.entryPaymentMethod === 'card' ? 'Data da compra' :
+      @if (store.entryPaymentMethod === 'card' && attempted && store.entryAmount !== null
+        && store.entryAmount > 0 && store.purchaseInstallments !== null
+        && store.purchaseInstallments >= 1 && store.purchaseInstallments <= 120
+        && store.cardPurchaseTotal() === null) {
+        <small class="field-error">O valor total calculado é alto demais para registrar a compra.</small>
+      }
+      <label for="entry-date">{{ store.entryPaymentMethod === 'card' ?
+        (store.purchaseAmountMode === 'total' ? 'Data da compra' : 'Data da primeira parcela a registrar') :
         store.entryMode === 'series' ? 'Primeira data prevista' :
         store.entryMode === 'planned' ? 'Data prevista' : 'Data em que ocorreu' }}</label>
       <app-date-field inputId="entry-date" name="entry-date"
-                       [(ngModel)]="store.entryDate" required />
+                        [(ngModel)]="store.entryDate" required />
+      @if (store.entryPaymentMethod === 'card' && store.purchaseAmountMode === 'installment') {
+        <small class="muted">Use uma data do ciclo da primeira fatura restante.
+          Parcelas anteriores não serão lançadas.</small>
+      }
       @if (attempted && !store.entryDate) {
         <small class="field-error">Selecione a data.</small>
       }
       @if (store.entryPaymentMethod === 'card') {
-        <label for="purchase-installments">Parcelas (1 a 120)</label>
+        <label for="purchase-installments">{{ store.purchaseAmountMode === 'total' ?
+          'Parcelas (1 a 120)' : 'Parcelas a registrar (1 a 120)' }}</label>
         <p-inputnumber inputId="purchase-installments" name="purchase-installments"
-                       [(ngModel)]="store.purchaseInstallments" [min]="1" [max]="120"
-                       [useGrouping]="false" />
-        @if (attempted && (store.purchaseInstallments === null || store.purchaseInstallments < 1
-          || store.purchaseInstallments > 120)) {
+                        [(ngModel)]="store.purchaseInstallments" [min]="1" [max]="120"
+                        [useGrouping]="false" />
+        @if (attempted && (store.purchaseInstallments === null || !numberIsInteger(store.purchaseInstallments)
+          || store.purchaseInstallments < 1 || store.purchaseInstallments > 120)) {
           <small class="field-error">Informe entre 1 e 120 parcelas.</small>
+        }
+        @if (store.cardPurchaseTotal(); as total) {
+          <p class="muted" role="status">
+            @if (store.purchaseAmountMode === 'total') {
+              {{ money(total) }} serão divididos em {{ store.purchaseInstallments }}
+              {{ store.purchaseInstallments === 1 ? 'parcela' : 'parcelas' }}.
+            } @else {
+              {{ store.purchaseInstallments }} {{ store.purchaseInstallments === 1 ? 'parcela' : 'parcelas' }}
+              de {{ money(store.entryAmount ?? 0) }} · total a registrar: {{ money(total) }}.
+              A numeração começa em 1/{{ store.purchaseInstallments }}.
+            }
+          </p>
         }
       } @else if (store.entryMode === 'series') {
         <label for="series-count">Quantidade de meses (1 a 120)</label>

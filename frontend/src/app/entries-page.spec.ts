@@ -43,9 +43,44 @@ describe('EntriesPage', () => {
     expect(page.querySelector('#entry-mode')).toBeNull();
     expect(page.querySelector('#purchase-card option')?.textContent).toContain('Selecione');
     expect(page.textContent).toContain('Cartão Gold (Banco Teste)');
+    expect(page.textContent).toContain('Valor total da compra');
     expect(page.textContent).toContain('Parcelas (1 a 120)');
     expect(page.querySelector('#entry-description')?.hasAttribute('required')).toBe(false);
     expect(page.textContent).not.toContain('Salário (Receita)');
+  });
+
+  it('labels installment amounts and previews the total without changing the typed value', async () => {
+    const fixture = TestBed.createComponent(EntriesPage);
+    const store = TestBed.inject(FinanceStore);
+    store.entryPaymentMethod = 'card';
+    store.purchaseInstallments = 3;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.nativeElement as HTMLElement;
+    const mode = page.querySelector('#purchase-amount-mode') as HTMLSelectElement;
+    expect(mode.value).toBe('total');
+    mode.value = 'installment';
+    mode.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(page.textContent).toContain('Data da primeira parcela a registrar');
+    expect(page.textContent).toContain('Parcelas a registrar');
+    expect(page.textContent).toContain('Parcelas anteriores não serão lançadas');
+
+    const amount = page.querySelector('#entry-amount') as HTMLInputElement;
+    amount.value = '5000';
+    amount.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(store.entryAmount).toBe(50);
+    expect(page.textContent).toMatch(/3 parcelas de R\$\s50,00/);
+    expect(page.textContent).toMatch(/total a registrar: R\$\s150,00/);
+    expect(page.textContent).toContain('1/3');
+
+    mode.value = 'total';
+    mode.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+    expect(store.entryAmount).toBe(50);
+    expect(page.textContent).toMatch(/R\$\s50,00 serão divididos em 3 parcelas/);
+    expect(page.textContent).toContain('Data da compra');
   });
 
   it('renders the month summary, the series marker and the series details', async () => {
@@ -152,6 +187,7 @@ describe('EntriesPage', () => {
     store.entryCategoryId = 5;
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('#entry-necessity')).toBeNull();
+    expect(fixture.nativeElement.querySelector('#purchase-amount-mode')).toBeNull();
   });
 
   it('hides the new-entity field when an existing entity is selected', () => {

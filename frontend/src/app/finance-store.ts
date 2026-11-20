@@ -128,6 +128,7 @@ export class FinanceStore {
   purchaseAmount: number | null = null;
   purchaseDate = new Date().toISOString().slice(0, 10);
   purchaseInstallments: number | null = 1;
+  purchaseAmountMode: 'total' | 'installment' = 'total';
   purchaseNecessity: Necessity = 'NECESSARIA';
   statementMonth = this.selectedMonth;
   statementCardId: number | null = null;
@@ -425,10 +426,15 @@ export class FinanceStore {
         this.error.set('Informe entre 1 e 120 parcelas.');
         return;
       }
+      const purchaseTotal = this.cardPurchaseTotal();
+      if (purchaseTotal === null) {
+        this.error.set('O valor total calculado é alto demais para registrar a compra.');
+        return;
+      }
       this.purchaseCategoryId = this.entryCategoryId;
       this.purchaseNecessity = this.entryNecessity;
       this.purchaseDescription = this.entryDescription;
-      this.purchaseAmount = this.entryAmount;
+      this.purchaseAmount = purchaseTotal;
       this.purchaseDate = this.entryDate;
       this.purchaseEntityId = this.entryEntityId;
       this.purchaseNewEntityName = this.entryNewEntityName;
@@ -518,6 +524,17 @@ export class FinanceStore {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  cardPurchaseTotal(): number | null {
+    if (this.entryAmount === null || !Number.isFinite(this.entryAmount)
+      || this.entryAmount <= 0 || this.purchaseInstallments === null
+      || !Number.isInteger(this.purchaseInstallments)
+      || this.purchaseInstallments < 1 || this.purchaseInstallments > 120) return null;
+    const cents = Math.round(this.entryAmount * 100);
+    const totalCents = this.purchaseAmountMode === 'installment'
+      ? cents * this.purchaseInstallments : cents;
+    return Number.isSafeInteger(totalCents) && totalCents > 0 ? totalCents / 100 : null;
   }
 
   onEntryModeChange(): void {
@@ -1096,6 +1113,7 @@ export class FinanceStore {
       this.cardStatements.set([]);
       this.cardCredits.set([]);
       this.statementCardId = null;
+      this.purchaseAmountMode = 'total';
       this.clearEntryEdit();
       this.notice.set('');
     } catch {
