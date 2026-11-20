@@ -28,4 +28,23 @@ describe('CategoriesPage', () => {
     expect(toggle).toHaveBeenCalledWith(active, false);
     expect(toggle).toHaveBeenCalledWith(inactive, true);
   });
+
+  it('keeps a long category list inside a focusable scroll area', () => {
+    TestBed.configureTestingModule({
+      imports: [CategoriesPage],
+      providers: [provideHttpClient(), provideHttpClientTesting()]
+    });
+    const fixture = TestBed.createComponent(CategoriesPage);
+    const store = TestBed.inject(FinanceStore);
+    store.categories.set(Array.from({ length: 40 }, (_, index) => ({
+      id: index + 1, ownerUserId: 1, name: `Categoria ${index + 1}`,
+      kind: 'DESPESA' as const, active: true
+    })));
+    fixture.detectChanges();
+    const page = fixture.nativeElement as HTMLElement;
+    const list = page.querySelector('ul.scroll-area') as HTMLElement | null;
+    expect(list).not.toBeNull();
+    expect(list!.tabIndex).toBe(0);
+    expect(page.textContent).toContain('Categoria 40');
+  });
 });

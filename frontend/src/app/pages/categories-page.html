@@ -26,7 +26,7 @@
       <p-card><p class="empty">Nenhuma categoria cadastrada.</p></p-card>
     } @else {
       <p-card>
-        <ul class="entity-list">
+        <ul class="entity-list scroll-area" tabindex="0">
           @for (category of store.categories(); track category.id) {
             <li>
               <span>{{ category.name }}</span>

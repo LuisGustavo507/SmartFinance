@@ -132,6 +132,34 @@ input.p-inputtext { width: 100%; padding: .62rem .7rem; border-radius: .5rem; }
 .inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; flex-basis: 100%; }
 .inline-form input { flex: 1 1 8rem; }
 
+/*
+ * Long lists scroll inside a bounded area instead of stretching the page.
+ * The cap follows the viewport so it stays usable on phones.
+ */
+.scroll-area {
+  max-height: min(34rem, 62vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  /* Soft shadows at the edges show there is more content when the platform hides native scrollbars. */
+  background:
+    linear-gradient(var(--sf-white) 30%, rgba(255, 255, 255, 0)) center top,
+    linear-gradient(rgba(255, 255, 255, 0), var(--sf-white) 70%) center bottom,
+    radial-gradient(farthest-side at 50% 0, rgba(18, 50, 70, .16), rgba(18, 50, 70, 0)) center top,
+    radial-gradient(farthest-side at 50% 100%, rgba(18, 50, 70, .16), rgba(18, 50, 70, 0)) center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 2.5rem, 100% 2.5rem, 100% .85rem, 100% .85rem;
+  background-attachment: local, local, scroll, scroll;
+}
+/* An always-visible thumb makes the scroll affordance obvious on both desktop and mobile webviews. */
+.scroll-area::-webkit-scrollbar { width: 10px; }
+.scroll-area::-webkit-scrollbar-track { background: var(--sf-border-soft); border-radius: 999px; }
+.scroll-area::-webkit-scrollbar-thumb { background: #A8C9DC; border-radius: 999px; }
+.scroll-area::-webkit-scrollbar-thumb:hover { background: #86B4CE; }
+@supports (-moz-appearance: none) {
+  .scroll-area { scrollbar-width: thin; scrollbar-color: #A8C9DC var(--sf-border-soft); }
+}
+
 .badge {
   display: inline-block;
   padding: .12rem .5rem;
