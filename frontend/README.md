@@ -3,8 +3,8 @@
 App Angular 21 + PrimeNG organizado em páginas com rotas reais e layout
 mobile-first: home em `/`, carteiras, lançamentos (realizados, previstos,
 séries mensais finitas, classificação de necessidade das despesas e edição de
-previsões), cartões de crédito (cadastro,
-compra parcelada, faturas do mês, pagamento, estorno integral e edição de cartão),
+previsões), cartões de crédito (cadastro e edição), faturas (por cartão e mês,
+com total, pagamento, estorno integral e histórico de itens cancelados),
 transferências, categorias,
 entidades e relatórios (por entidade e período). O cadastro de conta aceita
 tipo e instituição, com o catálogo global e a opção de informar uma
@@ -29,9 +29,13 @@ categorias inativas deixam os seletores de novos registros.
 No lançamento e na compra no cartão há um campo para cadastrar a entidade
 junto com o registro, sem sair da tela. A ação "Entidade" corrige o vínculo
 de um lançamento ou de uma compra já registrada, sem alterar valores.
-O registro de compras agora fica no formulário de Lançamentos: selecionando
-“Cartão de crédito” surgem cartão e parcelas; Cartões concentra cadastro,
-configuração e faturas. Valores monetários são digitados pelos centavos
+O registro de compras fica no formulário de Lançamentos: selecionando
+“Cartão de crédito” surgem cartão e parcelas. Cartões concentra cadastro e
+configuração; Faturas permite selecionar cartão (inclusive inativo, para
+consultar o histórico) e mês, ver os gastos ativos e o total bruto fornecido
+pela API, com cancelamentos/estornos em seção separada. Faturas fechadas,
+atrasadas e pagas permanecem acessíveis, com pagamento quando cabível.
+Valores monetários são digitados pelos centavos
 (`4599` → `R$ 45,99`) e datas são exibidas em português brasileiro.
 Descrições são opcionais em lançamentos e compras.
 

@@ -1,0 +1,221 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Crédito</p>
+    <h1>Faturas</h1>
+    <p class="page-subtitle">Consulte os gastos de um cartão em cada mês de referência.</p>
+  </div>
+  <p-button routerLink="/lancamentos" label="Registrar compra" icon="pi pi-plus" />
+</header>
+
+<div class="filters statement-filters">
+  <div>
+    <label for="statement-card">Cartão</label>
+    <select id="statement-card" name="statement-card"
+            [(ngModel)]="store.statementCardId" (ngModelChange)="cardChanged()">
+      <option [ngValue]="null">Selecione um cartão</option>
+      @for (card of store.cards(); track card.id) {
+        <option [ngValue]="card.id">{{ card.name }}{{ card.active ? '' : ' (inativo)' }}</option>
+      }
+    </select>
+  </div>
+  <div>
+    <label for="statement-month">Mês de referência</label>
+    <app-date-field inputId="statement-month" name="statement-month" [month]="true"
+                    [(ngModel)]="store.statementMonth" (ngModelChange)="loadStatements()" />
+  </div>
+</div>
+
+@if (store.cardsLoading()) {
+  <p-card><p role="status">Carregando faturas de {{ monthLabel(store.statementMonth) }}...</p></p-card>
+} @else if (store.cardsLoadFailed()) {
+  <p-card>
+    <p>Não foi possível carregar as faturas.</p>
+    <p-button label="Tentar novamente" severity="secondary" (onClick)="loadStatements()" />
+  </p-card>
+} @else if (store.cards().length === 0) {
+  <p-card>
+    <p class="empty">Você ainda não tem cartão cadastrado.</p>
+    <a routerLink="/cartoes">Cadastrar cartão</a>
+  </p-card>
+} @else if (store.statementCardId === null) {
+  <p-card><p class="empty">Selecione um cartão para consultar a fatura do mês.</p></p-card>
+} @else if (selectedStatement(); as statement) {
+  <p-card [header]="'Fatura de ' + store.cardLabel(statement.cardId)">
+    <p class="statement-period">
+      {{ monthLabel(store.statementMonth) }} ·
+      <span class="badge" [class.inactive]="statement.status !== 'ABERTA'">
+        {{ statusLabel(statement.status) }}
+      </span>
+    </p>
+
+    <section aria-label="Gastos da fatura">
+      <h2 class="statement-heading">
+        {{ statement.status === 'PROJETADA' || statement.status === 'ABERTA' ?
+          'Gastos previstos' : 'Gastos da fatura' }}
+      </h2>
+      @if (activeInstallments(statement).length === 0) {
+        <p class="empty">Nenhum gasto ativo nesta fatura.</p>
+      } @else {
+        <ul class="simple-list statement-list">
+          @for (installment of activeInstallments(statement); track installment.id) {
+            <li>
+              <span class="list-date">{{ installment.number }}ª</span>
+              <span class="list-main">
+                {{ installment.description || 'Sem descrição' }}
+                <small class="muted">· {{ installment.categoryName }}</small>
+                @if (installment.entityName) {
+                  <small class="muted">· {{ installment.entityName }}</small>
+                }
+                <div class="statement-actions">
+                  <p-button label="Estornar compra" severity="secondary" [text]="true"
+                            [disabled]="store.busy()"
+                            (onClick)="store.reverseCardPurchase(installment.purchaseId)" />
+                  <p-button label="Entidade" severity="secondary" [text]="true"
+                            [disabled]="store.busy()"
+                            (onClick)="store.startPurchaseEntityEdit(installment)" />
+                </div>
+                @if (store.editingPurchaseEntityId === installment.purchaseId) {
+                  <form (ngSubmit)="store.savePurchaseEntity()" class="form">
+                    <label [for]="'purchase-entity-' + installment.purchaseId">Entidade da compra</label>
+                    <select [id]="'purchase-entity-' + installment.purchaseId"
+                            [name]="'purchase-entity-' + installment.purchaseId"
+                            [(ngModel)]="store.purchaseEntitySelection">
+                      <option [ngValue]="null">Sem entidade</option>
+                      @for (entity of store.counterparties(); track entity.id) {
+                        @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
+                      }
+                    </select>
+                    <div class="edit-actions">
+                      <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
+                      <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                                (onClick)="store.editingPurchaseEntityId = null" />
+                    </div>
+                  </form>
+                }
+              </span>
+              <span class="list-amount">{{ money(installment.amount) }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <p class="statement-total">
+      <span>Total de gastos da fatura</span>
+      <strong>{{ money(statement.totalAmount) }}</strong>
+    </p>
+    <p class="muted">
+      Fechamento em {{ shortDate(statement.closingDate) }} ·
+      vencimento em {{ shortDate(statement.dueDate) }}
+      @if (statement.status === 'ABERTA' || statement.status === 'PROJETADA') {
+        · créditos previstos {{ money(statement.projectedCredits) }}
+        · líquido previsto {{ money(statement.totalAmount - statement.projectedCredits) }}
+      } @else {
+        · créditos aplicados {{ money(statement.appliedCredits) }}
+      }
+      @if (statement.closedAmount !== null) {
+        · líquido {{ money(statement.closedAmount) }}
+      }
+    </p>
+
+    @if (historicalInstallments(statement).length > 0) {
+      <section aria-label="Itens cancelados e estornados" class="statement-history">
+        <h2 class="statement-heading">Itens cancelados e estornados</h2>
+        <p class="muted">
+          Cancelamentos antes do fechamento não entram no total. Estornos após o
+          fechamento permanecem no total bruto e geram crédito para faturas futuras.
+        </p>
+        <ul class="simple-list statement-list">
+          @for (installment of historicalInstallments(statement); track installment.id) {
+            <li>
+              <span class="list-date">{{ installment.number }}ª</span>
+              <span class="list-main">
+                {{ installment.description || 'Sem descrição' }} ·
+                {{ installment.status === 'CANCELADA' ? 'Cancelada' : 'Estornada' }}
+                <p-button label="Entidade" severity="secondary" [text]="true"
+                          [disabled]="store.busy()"
+                          (onClick)="store.startPurchaseEntityEdit(installment)" />
+                @if (store.editingPurchaseEntityId === installment.purchaseId) {
+                  <form (ngSubmit)="store.savePurchaseEntity()" class="form">
+                    <label [for]="'purchase-entity-' + installment.purchaseId">Entidade da compra</label>
+                    <select [id]="'purchase-entity-' + installment.purchaseId"
+                            [name]="'purchase-entity-' + installment.purchaseId"
+                            [(ngModel)]="store.purchaseEntitySelection">
+                      <option [ngValue]="null">Sem entidade</option>
+                      @for (entity of store.counterparties(); track entity.id) {
+                        @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
+                      }
+                    </select>
+                    <div class="edit-actions">
+                      <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
+                      <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                                (onClick)="store.editingPurchaseEntityId = null" />
+                    </div>
+                  </form>
+                }
+              </span>
+              <span class="list-amount">{{ money(installment.amount) }}</span>
+            </li>
+          }
+        </ul>
+      </section>
+    }
+
+    @if (statement.status === 'FECHADA' || statement.status === 'ATRASADA') {
+      <p class="muted">Valor a pagar: {{ money(statement.closedAmount ?? statement.totalAmount) }}</p>
+      @if (store.paymentStatementId === statement.id) {
+        <form (ngSubmit)="store.payStatement()" class="form">
+          <label for="payment-wallet">Conta do pagamento</label>
+          <select id="payment-wallet" name="payment-wallet"
+                  [(ngModel)]="store.paymentWalletId" required>
+            <option [ngValue]="null">Selecione</option>
+            @for (wallet of store.activeWallets(); track wallet.id) {
+              <option [ngValue]="wallet.id">{{ wallet.name }}</option>
+            }
+          </select>
+          <label for="payment-date">Data do pagamento</label>
+          <app-date-field inputId="payment-date" name="payment-date" [time]="true"
+                          [(ngModel)]="store.paymentDateTime" required />
+          <p-button type="submit" label="Confirmar pagamento" [loading]="store.busy()"
+                    [disabled]="store.paymentWalletId === null || !store.paymentDateTime" />
+          <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                    (onClick)="store.paymentStatementId = null" />
+        </form>
+      } @else {
+        <p-button label="Pagar fatura" severity="secondary" [outlined]="true"
+                  [disabled]="store.busy()" (onClick)="store.paymentStatementId = statement.id" />
+      }
+    } @else if (statement.status === 'PAGA') {
+      <p class="muted">
+        @if (statement.paidOn) {
+          Paga em {{ shortDate(statement.paidOn) }} · {{ money(statement.paidAmount) }}
+        } @else {
+          Quitada sem cobrança.
+        }
+      </p>
+    }
+  </p-card>
+} @else {
+  <p-card>
+    <p class="empty">Nenhuma fatura para {{ store.cardLabel(store.statementCardId) }}
+      em {{ monthLabel(store.statementMonth) }}.</p>
+    <a routerLink="/lancamentos">Registrar uma compra</a>
+  </p-card>
+}
+
+@if (!store.cardsLoading() && !store.cardsLoadFailed() &&
+     store.statementCardId !== null && selectedCardCredits().length > 0) {
+  <p-card header="Créditos de estorno gerados neste mês" class="statement-credits">
+    <ul class="simple-list">
+      @for (credit of selectedCardCredits(); track credit.id) {
+        <li>
+          <span class="list-main">Compra #{{ credit.purchaseId }}</span>
+          <span class="list-amount">
+            {{ money(credit.originalAmount) }} gerados ·
+            {{ money(credit.availableAmount) }} disponíveis
+          </span>
+        </li>
+      }
+    </ul>
+  </p-card>
+}

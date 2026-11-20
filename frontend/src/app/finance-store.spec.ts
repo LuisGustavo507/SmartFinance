@@ -638,6 +638,20 @@ describe('FinanceStore', () => {
     expect(store.notice()).toContain('Cartão cadastrado');
   });
 
+  it('loads the card catalog without requesting statements on the cards page', async () => {
+    const loading = store.loadCardCatalog();
+    const request = http.expectOne('/api/cards');
+    expect(request.request.method).toBe('GET');
+    request.flush([
+      { id: 3, ownerUserId: 1, name: 'Cartão Gold', institutionName: 'Banco Teste',
+        closingDay: 28, dueDay: 5, creditLimit: null, defaultPaymentWalletId: null, active: true }
+    ]);
+    await loading;
+    expect(store.cards()[0].name).toBe('Cartão Gold');
+    expect(store.cardsLoadFailed()).toBe(false);
+    expect(store.cardsLoading()).toBe(false);
+  });
+
   it('creates the entity together with the record when a new name is typed', async () => {
     const wallet = { id: 3, ownerUserId: 1, name: 'Dinheiro', initialBalance: 100,
       estimatedBalance: 100, initialBalanceDate: '2026-01-01', active: true, type: 'CARTEIRA_DINHEIRO' as const, institutionName: null };
@@ -803,6 +817,7 @@ describe('FinanceStore', () => {
     await registration;
     expect(store.cardStatements().length).toBe(1);
     expect(store.cardStatements()[0].totalAmount).toBe(50);
+    expect(store.statementCardId).toBe(3);
     expect(store.monthlySummary()?.plannedExpenses).toBe(50);
     expect(store.notice()).toContain('Compra registrada');
   });

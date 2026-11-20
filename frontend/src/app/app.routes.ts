@@ -35,6 +35,11 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/cards-page').then(page => page.CardsPage)
       },
       {
+        path: 'faturas',
+        title: 'Faturas · Smart Finance',
+        loadComponent: () => import('./pages/statements-page').then(page => page.StatementsPage)
+      },
+      {
         path: 'transferencias',
         title: 'Transferências · Smart Finance',
         loadComponent: () => import('./pages/transfers-page').then(page => page.TransfersPage)

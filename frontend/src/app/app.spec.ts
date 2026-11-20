@@ -71,6 +71,7 @@ describe('App shell', () => {
     expect(nav?.querySelector('a[href="/lancamentos"]')?.textContent).toContain('Lançamentos');
     expect(nav?.querySelector('a[href="/carteiras"]')?.textContent).toContain('Carteiras');
     expect(nav?.querySelector('a[href="/cartoes"]')?.textContent).toContain('Cartões');
+    expect(nav?.querySelector('a[href="/faturas"]')?.textContent).toContain('Faturas');
     expect(compiled.querySelector('h1')?.textContent).toContain('Olá, Ana');
     expect(compiled.textContent).toContain('Saldo estimado total');
     expect(compiled.textContent).toMatch(/R\$\s1\.100,00/);

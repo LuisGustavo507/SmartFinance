@@ -2,183 +2,48 @@
   <div>
     <p class="eyebrow">Crédito</p>
     <h1>Cartões</h1>
-    <p class="page-subtitle">Configure seus cartões e acompanhe as faturas. Registre compras em Lançamentos.</p>
+    <p class="page-subtitle">Cadastre e gerencie seus cartões. Registre compras em Lançamentos e consulte os gastos em Faturas.</p>
   </div>
-  <p-button routerLink="/lancamentos" label="Registrar compra" icon="pi pi-plus" />
 </header>
 
 <div class="grid">
+  <p-card header="Novo cartão">
+    <form (ngSubmit)="store.createCard()" class="form">
+      <label for="card-name">Nome do cartão</label>
+      <input pInputText id="card-name" name="card-name" [(ngModel)]="store.cardName"
+             required maxlength="120" autocomplete="off" />
+      <label for="card-institution">Instituição</label>
+      <input pInputText id="card-institution" name="card-institution"
+             [(ngModel)]="store.cardInstitution" required maxlength="120" autocomplete="off" />
+      <label for="card-closing-day">Dia de fechamento</label>
+      <p-inputnumber inputId="card-closing-day" name="card-closing-day"
+                     [(ngModel)]="store.cardClosingDay" [min]="1" [max]="28"
+                     [useGrouping]="false" />
+      <label for="card-due-day">Dia de vencimento</label>
+      <p-inputnumber inputId="card-due-day" name="card-due-day" [(ngModel)]="store.cardDueDay"
+                     [min]="1" [max]="28" [useGrouping]="false" />
+      <label for="card-limit">Limite (opcional, apenas informativo)</label>
+      <app-money-field inputId="card-limit" name="card-limit" [(ngModel)]="store.cardLimit" />
+      <label for="card-wallet">Conta de pagamento padrão (opcional)</label>
+      <select id="card-wallet" name="card-wallet" [(ngModel)]="store.cardDefaultWalletId">
+        <option [ngValue]="null">Sem conta padrão</option>
+        @for (wallet of store.activeWallets(); track wallet.id) {
+          <option [ngValue]="wallet.id">{{ wallet.name }}</option>
+        }
+      </select>
+      <p-button type="submit" label="Cadastrar cartão" [loading]="store.busy()"
+                [disabled]="!store.cardName.trim() || !store.cardInstitution.trim()" />
+    </form>
+  </p-card>
   <div class="stack">
-    <p-card header="Novo cartão">
-      <form (ngSubmit)="store.createCard()" class="form">
-        <label for="card-name">Nome do cartão</label>
-        <input pInputText id="card-name" name="card-name" [(ngModel)]="store.cardName"
-               required maxlength="120" autocomplete="off" />
-        <label for="card-institution">Instituição</label>
-        <input pInputText id="card-institution" name="card-institution"
-               [(ngModel)]="store.cardInstitution" required maxlength="120" autocomplete="off" />
-        <label for="card-closing-day">Dia de fechamento</label>
-        <p-inputnumber inputId="card-closing-day" name="card-closing-day"
-                       [(ngModel)]="store.cardClosingDay" [min]="1" [max]="28"
-                       [useGrouping]="false" />
-        <label for="card-due-day">Dia de vencimento</label>
-        <p-inputnumber inputId="card-due-day" name="card-due-day" [(ngModel)]="store.cardDueDay"
-                       [min]="1" [max]="28" [useGrouping]="false" />
-        <label for="card-limit">Limite (opcional, apenas informativo)</label>
-         <app-money-field inputId="card-limit" name="card-limit" [(ngModel)]="store.cardLimit" />
-        <label for="card-wallet">Conta de pagamento padrão (opcional)</label>
-        <select id="card-wallet" name="card-wallet" [(ngModel)]="store.cardDefaultWalletId">
-          <option [ngValue]="null">Sem conta padrão</option>
-          @for (wallet of store.activeWallets(); track wallet.id) {
-            <option [ngValue]="wallet.id">{{ wallet.name }}</option>
-          }
-        </select>
-        <p-button type="submit" label="Cadastrar cartão" [loading]="store.busy()"
-                  [disabled]="!store.cardName.trim() || !store.cardInstitution.trim()" />
-      </form>
-    </p-card>
-
-  </div>
-
-  <div class="stack">
-    <div class="filters">
-      <div>
-        <label for="statement-month">Mês das faturas</label>
-         <app-date-field inputId="statement-month" name="statement-month" [month]="true"
-                         [(ngModel)]="store.statementMonth" (ngModelChange)="loadStatements()" />
-      </div>
-    </div>
-
-    @if (store.cardsLoading()) {
-      <p-card><p role="status">Carregando faturas de {{ monthLabel(store.statementMonth) }}...</p></p-card>
-    } @else if (store.cardsLoadFailed()) {
-      <p-card>
-        <p>Não foi possível carregar as faturas.</p>
-        <p-button label="Tentar novamente" severity="secondary" (onClick)="loadStatements()" />
-      </p-card>
-    } @else if (store.cardStatements().length === 0) {
-      <p-card><p class="empty">Nenhuma fatura em {{ monthLabel(store.statementMonth) }}.</p></p-card>
-    } @else {
-      @for (statement of store.cardStatements(); track statement.id) {
-        <p-card [header]="'Fatura ' + store.cardLabel(statement.cardId)">
-          <ul class="simple-list">
-            @for (installment of statement.installments; track installment.id) {
-              <li>
-                <span class="list-date">{{ installment.number }}ª</span>
-                <span class="list-main">
-                   {{ shortDate(installment.statementDueDate) }} · {{ installment.description || 'Sem descrição' }}
-                  <small class="muted">· {{ installment.categoryName }}</small>
-                  @if (installment.entityName) { <small class="muted">· {{ installment.entityName }}</small> }
-                  @if (installment.status !== 'ATIVA') {
-                    <small class="muted">· {{ installment.status === 'CANCELADA' ? 'Cancelada' : 'Estornada' }}</small>
-                  } @else {
-                    <p-button label="Estornar compra" severity="secondary" [text]="true"
-                              [disabled]="store.busy()"
-                              (onClick)="store.reverseCardPurchase(installment.purchaseId)" />
-                  }
-                  <p-button label="Entidade" severity="secondary" [text]="true"
-                            [disabled]="store.busy()"
-                            (onClick)="store.startPurchaseEntityEdit(installment)" />
-                  @if (store.editingPurchaseEntityId === installment.purchaseId) {
-                    <form (ngSubmit)="store.savePurchaseEntity()" class="form">
-                      <label [for]="'purchase-entity-' + installment.purchaseId">
-                        Entidade da compra
-                      </label>
-                      <select [id]="'purchase-entity-' + installment.purchaseId"
-                              [name]="'purchase-entity-' + installment.purchaseId"
-                              [(ngModel)]="store.purchaseEntitySelection">
-                        <option [ngValue]="null">Sem entidade</option>
-                        @for (entity of store.counterparties(); track entity.id) {
-                          @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
-                        }
-                      </select>
-                      <div class="edit-actions">
-                        <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
-                        <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                                  (onClick)="store.editingPurchaseEntityId = null" />
-                      </div>
-                    </form>
-                  }
-                </span>
-                <span class="list-amount">{{ money(installment.amount) }}</span>
-              </li>
-            }
-          </ul>
-          <p class="muted">
-            Fechamento em {{ shortDate(statement.closingDate) }} · vencimento em
-            {{ shortDate(statement.dueDate) }} · bruto {{ money(statement.totalAmount) }}
-            @if (statement.status === 'ABERTA' || statement.status === 'PROJETADA') {
-              · créditos previstos {{ money(statement.projectedCredits) }}
-              · líquido previsto {{ money(statement.totalAmount - statement.projectedCredits) }}
-            } @else {
-              · créditos aplicados {{ money(statement.appliedCredits) }}
-            }
-            @if (statement.closedAmount !== null) {
-              · líquido {{ money(statement.closedAmount) }}
-            }
-          </p>
-          <span class="badge" [class.inactive]="statement.status !== 'ABERTA'">
-            {{ statusLabel(statement.status) }}
-          </span>
-          @if (statement.status === 'FECHADA' || statement.status === 'ATRASADA') {
-            <p class="muted">
-              Valor a pagar: {{ money(statement.closedAmount ?? statement.totalAmount) }}
-            </p>
-            @if (store.paymentStatementId === statement.id) {
-              <form (ngSubmit)="store.payStatement()" class="form">
-                <label for="payment-wallet">Conta do pagamento</label>
-                <select id="payment-wallet" name="payment-wallet"
-                        [(ngModel)]="store.paymentWalletId" required>
-                  <option [ngValue]="null">Selecione</option>
-                  @for (wallet of store.activeWallets(); track wallet.id) {
-                    <option [ngValue]="wallet.id">{{ wallet.name }}</option>
-                  }
-                </select>
-                <label for="payment-date">Data do pagamento</label>
-                 <app-date-field inputId="payment-date" name="payment-date" [time]="true"
-                                 [(ngModel)]="store.paymentDateTime" required />
-                <p-button type="submit" label="Confirmar pagamento" [loading]="store.busy()"
-                          [disabled]="store.paymentWalletId === null || !store.paymentDateTime" />
-                <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                          (onClick)="store.paymentStatementId = null" />
-              </form>
-            } @else {
-              <p-button label="Pagar fatura" severity="secondary" [outlined]="true"
-                        [disabled]="store.busy()"
-                        (onClick)="store.paymentStatementId = statement.id" />
-            }
-          } @else if (statement.status === 'PAGA') {
-            <p class="muted">
-              @if (statement.paidOn) {
-                Paga em {{ shortDate(statement.paidOn) }} · {{ money(statement.paidAmount) }}
-              } @else {
-                Quitada sem cobrança.
-              }
-            </p>
-          }
-        </p-card>
-      }
-    }
-
-    @if (!store.cardsLoading() && !store.cardsLoadFailed() && store.cardCredits().length > 0) {
-      <p-card header="Créditos de estorno gerados neste mês">
-        <ul class="simple-list">
-          @for (credit of store.cardCredits(); track credit.id) {
-            <li>
-              <span class="list-main">Compra #{{ credit.purchaseId }} · {{ store.cardLabel(credit.cardId) }}</span>
-              <span class="list-amount">
-                {{ money(credit.originalAmount) }} gerados ·
-                {{ money(credit.availableAmount) }} disponíveis
-              </span>
-            </li>
-          }
-        </ul>
-      </p-card>
-    }
-
     <p-card header="Cartões cadastrados">
-      @if (store.cards().length === 0) {
-        <p class="empty">Nenhum cartão cadastrado. Cadastre o primeiro ao lado.</p>
+      @if (store.cardsLoading()) {
+        <p role="status">Carregando cartões...</p>
+      } @else if (store.cardsLoadFailed()) {
+        <p>Não foi possível carregar os cartões.</p>
+        <p-button label="Tentar novamente" severity="secondary" (onClick)="store.loadCardCatalog()" />
+      } @else if (store.cards().length === 0) {
+        <p class="empty">Nenhum cartão cadastrado. Use o formulário para cadastrar o primeiro.</p>
       } @else {
         <ul class="simple-list">
           @for (card of store.cards(); track card.id) {
@@ -216,7 +81,7 @@
                            [useGrouping]="false" />
             <small class="muted">Após a primeira compra ou fatura, os dias não podem mudar.</small>
             <label for="edit-card-limit">Limite informativo</label>
-             <app-money-field inputId="edit-card-limit" name="edit-card-limit"
+            <app-money-field inputId="edit-card-limit" name="edit-card-limit"
                               [(ngModel)]="store.editingCardLimit" />
             <label for="edit-card-wallet">Conta de pagamento padrão</label>
             <select id="edit-card-wallet" name="edit-card-wallet"

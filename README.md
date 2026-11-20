@@ -484,7 +484,8 @@ O app é mobile-first e usa rotas com carregamento sob demanda:
 | `/` | Home com saldo total, totais do mês, últimos lançamentos e atalhos |
 | `/carteiras` | Cadastro e saldo estimado de cada carteira |
 | `/lancamentos` | Lançamentos do mês, resumo, previsões, séries finitas e edição |
-| `/cartoes` | Cadastro de cartão, compra parcelada, faturas do mês e pagamento |
+| `/cartoes` | Cadastro, edição e ativação de cartões |
+| `/faturas` | Faturas por cartão e mês, gastos e total bruto, estorno, créditos e pagamento |
 | `/transferencias` | Transferência entre carteiras e listagem do mês UTC |
 | `/categorias` | Cadastro e listagem de categorias |
 | `/entidades` | Cadastro, renomeação, ativação e exclusão de contrapartes |
@@ -497,8 +498,9 @@ ativa/desativa, renomeia e exclui contrapartes sem vínculos, registra
 receitas/despesas realizadas ou previstas, cancela previsões, edita uma
 previsão ou esta e as futuras de uma série, cria séries
 mensais finitas e consulta suas ocorrências, cadastra cartões de crédito,
-registra compras no cartão à vista ou parceladas, acompanha as faturas do
-mês e paga as faturas fechadas, cria/lista transferências por
+registra compras no cartão à vista ou parceladas em Lançamentos, acompanha
+as faturas por cartão e mês em Faturas e paga as faturas fechadas,
+cria/lista transferências por
 mês UTC, filtra os lançamentos do mês por entidade e mostra um resumo mensal
 explicitamente parcial com totais realizados, previstos e resultado
 projetado. Em `401` de leitura protegida tenta renovar uma vez; `403` não

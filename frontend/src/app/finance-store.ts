@@ -130,6 +130,7 @@ export class FinanceStore {
   purchaseInstallments: number | null = 1;
   purchaseNecessity: Necessity = 'NECESSARIA';
   statementMonth = this.selectedMonth;
+  statementCardId: number | null = null;
   paymentStatementId: number | null = null;
   paymentWalletId: number | null = null;
   paymentDateTime = new Date().toISOString().slice(0, 16);
@@ -436,7 +437,7 @@ export class FinanceStore {
         this.entryDescription = '';
         this.entryAmount = null;
         this.entryNewEntityName = '';
-        this.notice.set(`Compra registrada. Primeira parcela em ${this.statementMonth}. Consulte as faturas em Cartões.`);
+        this.notice.set(`Compra registrada. Primeira parcela em ${this.statementMonth}. Consulte a página Faturas.`);
       }
       return;
     }
@@ -923,6 +924,24 @@ export class FinanceStore {
     }
   }
 
+  async loadCardCatalog(): Promise<void> {
+    this.error.set('');
+    const requestId = ++this.cardsRequest;
+    this.cardsLoading.set(true);
+    this.cardsLoadFailed.set(false);
+    try {
+      const cards = await firstValueFrom(this.api.cards());
+      if (requestId === this.cardsRequest) this.cards.set(cards);
+    } catch (error) {
+      if (requestId === this.cardsRequest) {
+        this.cardsLoadFailed.set(true);
+        this.error.set(this.message(error, 'Não foi possível carregar os cartões.'));
+      }
+    } finally {
+      if (requestId === this.cardsRequest) this.cardsLoading.set(false);
+    }
+  }
+
   async loadCards(): Promise<void> {
     this.error.set('');
     const requestId = ++this.cardsRequest;
@@ -943,7 +962,7 @@ export class FinanceStore {
     } catch (error) {
       if (requestId === this.cardsRequest) {
         this.cardsLoadFailed.set(true);
-        this.error.set(this.message(error, 'Não foi possível consultar os cartões.'));
+        this.error.set(this.message(error, 'Não foi possível carregar as faturas.'));
       }
     } finally {
       if (requestId === this.cardsRequest) this.cardsLoading.set(false);
@@ -1033,6 +1052,7 @@ export class FinanceStore {
       this.purchaseAmount = null;
       this.purchaseInstallments = 1;
       this.purchaseNewEntityName = '';
+      this.statementCardId = this.purchaseCardId;
       const first = purchase.installments[0];
       if (first) {
         this.statementMonth = first.statementReferenceMonth;
@@ -1041,7 +1061,7 @@ export class FinanceStore {
       await this.loadCards();
       await this.refreshSummary();
       if (this.cardsLoadFailed()) {
-        this.error.set('A compra foi salva, mas não foi possível atualizar as faturas. Tente carregar as faturas novamente em Cartões.');
+        this.error.set('A compra foi salva, mas não foi possível atualizar as faturas. Tente novamente na página Faturas.');
       }
     } catch (error) {
       if (created) {
@@ -1075,6 +1095,7 @@ export class FinanceStore {
       this.cards.set([]);
       this.cardStatements.set([]);
       this.cardCredits.set([]);
+      this.statementCardId = null;
       this.clearEntryEdit();
       this.notice.set('');
     } catch {
