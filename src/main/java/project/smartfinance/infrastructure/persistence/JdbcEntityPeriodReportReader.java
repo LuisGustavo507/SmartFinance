@@ -22,7 +22,7 @@ class JdbcEntityPeriodReportReader implements EntityPeriodReportReader {
         List<EntityPeriodTotal> entities = jdbc.query("""
                 WITH movimentos AS (
                     SELECT l.entidade_id, c.natureza, l.valor,
-                        l.status = 'EFETIVADO' AS realizado
+                        l.status = 'EFETIVADO' AS realizado, FALSE AS pendente
                     FROM lancamento_financeiro l
                     JOIN categoria c ON c.id = l.categoria_id
                         AND c.owner_user_id = l.owner_user_id
@@ -31,7 +31,7 @@ class JdbcEntityPeriodReportReader implements EntityPeriodReportReader {
                         AND l.status IN ('PREVISTO', 'EFETIVADO')
                     UNION ALL
                     SELECT purchase.entidade_id, cat.natureza, p.valor,
-                        f.status IN ('FECHADA', 'ATRASADA', 'PAGA')
+                        f.status IN ('FECHADA', 'ATRASADA', 'PAGA'), FALSE
                     FROM parcela_cartao p
                     JOIN compra_cartao purchase ON purchase.id = p.compra_cartao_id
                         AND purchase.owner_user_id = p.owner_user_id
@@ -45,15 +45,25 @@ class JdbcEntityPeriodReportReader implements EntityPeriodReportReader {
                                 AND p.status IN ('ATIVA', 'ESTORNADA'))
                             OR (f.status IN ('PROJETADA', 'ABERTA')
                                 AND p.status = 'ATIVA'))
+                    UNION ALL
+                    SELECT o.entidade_id, 'DESPESA', o.valor,
+                        p.id IS NOT NULL, p.id IS NULL
+                    FROM conta_pagar o
+                    LEFT JOIN pagamento_conta_pagar p ON p.conta_pagar_id = o.id
+                        AND p.owner_user_id = o.owner_user_id AND p.estornado_em IS NULL
+                    WHERE o.owner_user_id = ? AND o.cancelada_em IS NULL
+                        AND o.data_vencimento >= ? AND o.data_vencimento < ?
                 )
                 SELECT m.entidade_id, COALESCE(e.nome, 'Sem entidade'),
                     COALESCE(SUM(m.valor) FILTER (WHERE m.realizado
                         AND m.natureza = 'RECEITA'), 0),
                     COALESCE(SUM(m.valor) FILTER (WHERE m.realizado
                         AND m.natureza = 'DESPESA'), 0),
-                    COALESCE(SUM(m.valor) FILTER (WHERE NOT m.realizado
+                    COALESCE(SUM(m.valor) FILTER (WHERE NOT m.realizado AND NOT m.pendente
                         AND m.natureza = 'RECEITA'), 0),
-                    COALESCE(SUM(m.valor) FILTER (WHERE NOT m.realizado
+                    COALESCE(SUM(m.valor) FILTER (WHERE NOT m.realizado AND NOT m.pendente
+                        AND m.natureza = 'DESPESA'), 0),
+                    COALESCE(SUM(m.valor) FILTER (WHERE m.pendente
                         AND m.natureza = 'DESPESA'), 0)
                 FROM movimentos m
                 LEFT JOIN entidade e ON e.id = m.entidade_id
@@ -63,8 +73,9 @@ class JdbcEntityPeriodReportReader implements EntityPeriodReportReader {
                 """, (rs, row) -> new EntityPeriodTotal(
                 rs.getObject(1, Integer.class), rs.getString(2),
                 rs.getBigDecimal(3), rs.getBigDecimal(4),
-                rs.getBigDecimal(5), rs.getBigDecimal(6)),
-                ownerUserId, from, to, ownerUserId, from, to, ownerUserId);
+                rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7)),
+                ownerUserId, from, to, ownerUserId, from, to,
+                ownerUserId, from, to.plusMonths(1), ownerUserId);
         return new EntityPeriodReport(from, to, entities);
     }
 }

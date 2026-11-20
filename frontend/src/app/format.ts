@@ -5,6 +5,7 @@ export interface CategoryRow {
   kind: 'RECEITA' | 'DESPESA';
   realized: number;
   planned: number;
+  pending: number;
 }
 
 export function categoryRows(totals: CategoryTotal[] | undefined): CategoryRow[] {
@@ -12,7 +13,8 @@ export function categoryRows(totals: CategoryTotal[] | undefined): CategoryRow[]
     name: total.categoryName,
     kind: total.kind,
     realized: total.kind === 'RECEITA' ? total.realizedIncome : total.realizedExpenses,
-    planned: total.kind === 'RECEITA' ? total.plannedIncome : total.plannedExpenses
+    planned: total.kind === 'RECEITA' ? total.plannedIncome : total.plannedExpenses,
+    pending: total.pendingExpenses ?? 0
   }));
 }
 

@@ -2,7 +2,7 @@
   <div>
     <p class="eyebrow">Movimentações</p>
     <h1>Lançamentos</h1>
-    <p class="page-subtitle">Registre receitas, despesas e compras no cartão em um só lugar.</p>
+    <p class="page-subtitle">Registre receitas, despesas já ocorridas e compras no cartão. Para uma dívida ainda não paga, use <a routerLink="/contas-a-pagar">Contas a pagar</a>.</p>
   </div>
 </header>
 
@@ -298,6 +298,7 @@
           <li><span>Resultado realizado</span><strong>{{ money(summary.realizedResult) }}</strong></li>
           <li><span>Receitas previstas</span><strong>{{ money(summary.plannedIncome) }}</strong></li>
           <li><span>Despesas previstas</span><strong>{{ money(summary.plannedExpenses) }}</strong></li>
+          <li><span>Contas a pagar pendentes</span><strong>{{ money(summary.pendingExpenses ?? 0) }}</strong></li>
           <li class="total"><span>Resultado projetado</span><strong>{{ money(summary.projectedResult) }}</strong></li>
           <li><span>Créditos de estorno gerados</span><strong>{{ money(summary.reversalCreditsGenerated ?? 0) }}</strong></li>
           <li><span>Créditos aplicados em faturas</span><strong>{{ money(summary.reversalCreditsApplied ?? 0) }}</strong></li>
@@ -317,6 +318,9 @@
                   @if (row.planned > 0) {
                     · previsto {{ row.kind === 'RECEITA' ? '+' : '−' }} {{ money(row.planned) }}
                   }
+                  @if (row.pending > 0) {
+                    · conta pendente − {{ money(row.pending) }}
+                  }
                 </strong>
               </li>
             }
@@ -330,6 +334,10 @@
                   <strong>{{ money(total.realizedExpenses) }}</strong></li>
               <li><span>{{ necessityLabel(total.necessity) }} · previstas</span>
                   <strong>{{ money(total.plannedExpenses) }}</strong></li>
+              @if ((total.pendingExpenses ?? 0) > 0) {
+                <li><span>{{ necessityLabel(total.necessity) }} · contas pendentes</span>
+                    <strong>{{ money(total.pendingExpenses ?? 0) }}</strong></li>
+              }
             }
           </ul>
         }

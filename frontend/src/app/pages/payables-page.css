@@ -1,0 +1,19 @@
+.payables-grid {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+}
+.payables-main { display: grid; gap: 1.25rem; min-width: 0; }
+.filter, .actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.filter { margin-bottom: .5rem; }
+.payable-row { flex-wrap: wrap; }
+.payable-row .list-main { display: grid; gap: .2rem; }
+.payable-row .badge { width: fit-content; }
+.payable-row .badge.pending { background: #E5F2FA; color: #155475; }
+.payable-row .badge.overdue { background: #FCE8E6; color: #9B3028; }
+.payable-row .actions { width: 100%; }
+.form p-button { margin-top: .75rem; }
+@media (max-width: 760px) {
+  .payables-grid { grid-template-columns: 1fr; }
+}

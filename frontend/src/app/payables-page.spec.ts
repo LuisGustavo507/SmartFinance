@@ -1,0 +1,126 @@
+import { TestBed } from '@angular/core/testing';
+import { HttpErrorResponse } from '@angular/common/http';
+import { provideRouter } from '@angular/router';
+import { of, throwError } from 'rxjs';
+import { vi } from 'vitest';
+import { Api, Payable } from './api';
+import { FinanceStore } from './finance-store';
+import { PayablesPage } from './pages/payables-page';
+
+const payable: Payable = {
+  id: 3, ownerUserId: 1, categoryId: 2, categoryName: 'Energia',
+  entityId: null, entityName: null, description: 'Conta de luz',
+  necessity: 'NECESSARIA', amount: 100, dueOn: '2026-11-10',
+  status: 'ATRASADA', createdAt: '2026-11-01T10:00:00Z'
+};
+
+describe('PayablesPage', () => {
+  let api: Record<string, ReturnType<typeof vi.fn>>;
+
+  beforeEach(async () => {
+    api = {
+      payables: vi.fn(() => of([payable])),
+      payable: vi.fn(() => of(payable)),
+      payablePayments: vi.fn(() => of([])),
+      csrf: vi.fn(() => of(undefined)),
+      createPayable: vi.fn(() => of(payable)),
+      updatePayable: vi.fn(() => of(payable)),
+      payPayable: vi.fn(() => of({})),
+      reversePayablePayment: vi.fn(() => of({})),
+      cancelPayable: vi.fn(() => of(undefined)),
+      wallets: vi.fn(() => of([])),
+      monthlySummary: vi.fn(() => of({
+        month: '2026-11-01', realizedIncome: 0, realizedExpenses: 0, realizedResult: 0,
+        plannedIncome: 0, plannedExpenses: 0, pendingExpenses: 100, projectedResult: -100
+      }))
+    };
+    await TestBed.configureTestingModule({
+      imports: [PayablesPage],
+      providers: [{ provide: Api, useValue: api }, provideRouter([])]
+    }).compileComponents();
+  });
+
+  it('explains the balance rule and lists overdue obligations even for another month', async () => {
+    const fixture = TestBed.createComponent(PayablesPage);
+    fixture.componentInstance.month = '2026-12';
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(api['payables']).toHaveBeenCalledWith('2026-12');
+    expect(text).toContain('O dinheiro sai apenas ao confirmar o pagamento integral');
+    expect(text).toContain('Conta de luz');
+    expect(text).toContain('Atrasada');
+    expect(text).toContain('Não registre a mesma despesa também em Lançamentos');
+  });
+
+  it('preserves input and reports an error if creating a payable fails', async () => {
+    api['createPayable'].mockReturnValue(throwError(() => new HttpErrorResponse({ status: 400 })));
+    const fixture = TestBed.createComponent(PayablesPage);
+    const page = fixture.componentInstance;
+    const store = TestBed.inject(FinanceStore);
+    store.categories.set([{ id: 2, ownerUserId: 1, name: 'Energia',
+      kind: 'DESPESA', active: true }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    page.categoryId = 2;
+    page.necessity = 'NECESSARIA';
+    page.description = 'Luz de novembro';
+    page.amount = 100;
+    page.dueOn = '2026-11-10';
+    fixture.detectChanges();
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
+      .find(element => element.textContent?.includes('Cadastrar conta'))!;
+    button.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(page.error()).toContain('Confira os dados');
+    expect((fixture.nativeElement as HTMLElement).querySelector('[role="alert"]')).not.toBeNull();
+    expect(page.description).toBe('Luz de novembro');
+    expect(page.amount).toBe(100);
+  });
+
+  it('registers one integral payment and refreshes visible state', async () => {
+    const fixture = TestBed.createComponent(PayablesPage);
+    const page = fixture.componentInstance;
+    const store = TestBed.inject(FinanceStore);
+    store.wallets.set([{ id: 5, ownerUserId: 1, name: 'Conta', type: 'CONTA_CORRENTE',
+      institutionName: 'Banco', initialBalance: 100, estimatedBalance: 100,
+      initialBalanceDate: '2026-01-01', active: true }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await page.select(payable);
+    page.walletId = 5;
+    page.paidOn = '2026-11-20';
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    fixture.detectChanges();
+    const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
+      .find(element => element.textContent?.includes('Registrar pagamento integral'))!;
+    button.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(api['payPayable']).toHaveBeenCalledWith(3, 5, '2026-11-20');
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Pagamento integral registrado');
+    vi.unstubAllGlobals();
+  });
+
+  it('does not suggest repeating a successful payment when refreshing the list fails', async () => {
+    const fixture = TestBed.createComponent(PayablesPage);
+    const page = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await page.select(payable);
+    page.walletId = 5;
+    page.paidOn = '2026-11-20';
+    api['payables'].mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 503 })));
+    vi.stubGlobal('confirm', vi.fn(() => true));
+    await page.pay();
+    fixture.detectChanges();
+    expect(api['payPayable']).toHaveBeenCalledTimes(1);
+    expect(page.notice()).toContain('Pagamento integral registrado');
+    expect(page.error()).toContain('operação foi concluída');
+    expect(page.selected()).toBeNull();
+    expect(page.loadFailed()).toBe(true);
+    vi.unstubAllGlobals();
+  });
+});

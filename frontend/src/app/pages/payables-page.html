@@ -1,0 +1,172 @@
+<header class="page-header">
+  <div>
+    <p class="eyebrow">Compromissos</p>
+    <h1>Contas a pagar</h1>
+    <p class="page-subtitle">Registre uma conta sem reduzir o saldo. O dinheiro sai apenas ao confirmar o pagamento integral.</p>
+  </div>
+</header>
+
+<p class="muted">Não registre a mesma despesa também em Lançamentos ou no cartão: pagamentos aqui não criam outra despesa automaticamente.</p>
+
+@if (error()) { <p class="alert" role="alert">{{ error() }}</p> }
+@if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+
+<div class="payables-grid">
+  <p-card [header]="editingId === null ? 'Nova conta a pagar' : 'Corrigir conta a pagar'">
+    <form (ngSubmit)="save()" class="form">
+      <label for="payable-category">Categoria de despesa</label>
+      <select id="payable-category" name="category" [(ngModel)]="categoryId" required>
+        <option [ngValue]="null">Selecione</option>
+        @for (category of store.expenseCategories(); track category.id) {
+          <option [ngValue]="category.id">{{ category.name }}</option>
+        }
+      </select>
+      @if (!store.expenseCategories().length) {
+        <p class="muted">Cadastre uma categoria de despesa antes de registrar a conta.</p>
+      }
+
+      <label for="payable-necessity">Necessidade</label>
+      <select id="payable-necessity" name="necessity" [(ngModel)]="necessity" required>
+        <option [ngValue]="null">Selecione</option>
+        <option value="NECESSARIA">Necessária</option>
+        <option value="NEUTRA">Neutra</option>
+        <option value="FUTIL">Fútil</option>
+      </select>
+
+      <label for="payable-entity">Entidade (opcional)</label>
+      <select id="payable-entity" name="entity" [(ngModel)]="entityId">
+        <option [ngValue]="null">Sem entidade</option>
+        @for (entity of store.counterparties(); track entity.id) {
+          @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
+        }
+      </select>
+
+      <label for="payable-description">Descrição (opcional)</label>
+      <input pInputText id="payable-description" name="description"
+             [(ngModel)]="description" maxlength="255" />
+
+      <label for="payable-amount">Valor integral</label>
+      <app-money-field inputId="payable-amount" name="amount" [(ngModel)]="amount" required />
+
+      <label for="payable-due">Vencimento</label>
+      <app-date-field inputId="payable-due" name="due" [(ngModel)]="dueOn" required />
+
+      <div class="actions">
+        <p-button type="submit" [label]="editingId === null ? 'Cadastrar conta' : 'Salvar correção'"
+                  [loading]="busy()" [disabled]="busy() || !categoryId || !necessity || !amount || !dueOn" />
+        @if (editingId !== null) {
+          <p-button type="button" label="Descartar edição" severity="secondary"
+                    [text]="true" [disabled]="busy()" (onClick)="resetForm()" />
+        }
+      </div>
+    </form>
+  </p-card>
+
+  <div class="payables-main">
+    <p-card header="Vencimentos e atrasadas">
+      <div class="filter">
+        <label for="payables-month">Mês de vencimento</label>
+        <app-date-field inputId="payables-month" name="month" [month]="true" [(ngModel)]="month" />
+        <p-button label="Consultar" severity="secondary" [disabled]="!month || loading()"
+                  (onClick)="load()" />
+      </div>
+      <p class="muted">Contas atrasadas aparecem mesmo quando venceram em outro mês.</p>
+      @if (loading()) {
+        <p role="status">Carregando contas...</p>
+      } @else if (loadFailed()) {
+        <p>Não foi possível consultar as contas.</p>
+        <p-button label="Tentar novamente" severity="secondary" (onClick)="load()" />
+      } @else if (!payables().length) {
+        <p class="empty">Nenhuma conta neste mês nem atrasada. Cadastre uma acima para começar.</p>
+      } @else {
+        <ul class="simple-list">
+          @for (payable of payables(); track payable.id) {
+            <li class="payable-row">
+              <span class="list-main">
+                <strong>{{ payable.description || payable.categoryName }}</strong>
+                <small>{{ shortDate(payable.dueOn) }} · {{ payable.categoryName }}
+                  @if (payable.entityName) { · {{ payable.entityName }} }
+                </small>
+                <small class="badge" [class.pending]="payable.status === 'PENDENTE'"
+                       [class.overdue]="payable.status === 'ATRASADA'"
+                       [class.inactive]="payable.status === 'CANCELADA'">
+                  {{ payable.status === 'ATRASADA' ? 'Atrasada' :
+                     payable.status === 'QUITADA' ? 'Quitada' :
+                     payable.status === 'CANCELADA' ? 'Cancelada' : 'Pendente' }}
+                </small>
+              </span>
+              <strong class="list-amount">{{ money(payable.amount) }}</strong>
+              <div class="actions">
+                <p-button label="Detalhes" severity="secondary" [text]="true"
+                          (onClick)="select(payable)" />
+                @if (payable.status === 'PENDENTE' || payable.status === 'ATRASADA') {
+                  <p-button label="Editar" severity="secondary" [text]="true" [disabled]="busy()"
+                            (onClick)="startEdit(payable)" />
+                  <p-button label="Cancelar conta" severity="danger" [text]="true"
+                            [disabled]="busy()" (onClick)="cancel(payable)" />
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </p-card>
+
+    @if (selected(); as payable) {
+      <p-card [header]="'Conta: ' + (payable.description || payable.categoryName)">
+        <p><strong>{{ money(payable.amount) }}</strong> · vencimento {{ shortDate(payable.dueOn) }}
+          · {{ payable.status === 'ATRASADA' ? 'Atrasada' :
+               payable.status === 'QUITADA' ? 'Quitada' :
+               payable.status === 'CANCELADA' ? 'Cancelada' : 'Pendente' }}</p>
+        @if (payable.status === 'PENDENTE' || payable.status === 'ATRASADA') {
+          <form (ngSubmit)="pay()" class="form">
+            <p>O pagamento deve ser integral. Escolha a conta que realmente pagou.</p>
+            <label for="payment-wallet">Conta pagadora</label>
+            <select id="payment-wallet" name="wallet" [(ngModel)]="walletId" required>
+              <option [ngValue]="null">Selecione</option>
+              @for (wallet of store.activeWallets(); track wallet.id) {
+                <option [ngValue]="wallet.id">{{ wallet.name }}</option>
+              }
+            </select>
+            <label for="payment-date">Data em que pagou</label>
+            <app-date-field inputId="payment-date" name="paidOn" [(ngModel)]="paidOn" required />
+            <p-button type="submit" label="Registrar pagamento integral"
+                      [loading]="busy()" [disabled]="busy() || !walletId || !paidOn" />
+          </form>
+        }
+        <h3>Histórico de pagamentos</h3>
+        @if (paymentsLoading()) {
+          <p role="status">Carregando pagamentos...</p>
+        } @else if (paymentsLoadFailed()) {
+          <p>Não foi possível consultar os pagamentos.</p>
+          <p-button label="Tentar novamente" severity="secondary"
+                    (onClick)="select(payable)" />
+        } @else if (!payments().length) {
+          <p class="muted">Ainda não há pagamentos registrados.</p>
+        } @else {
+          <ul class="simple-list">
+            @for (payment of payments(); track payment.id) {
+              <li>
+                <span class="list-main">
+                  {{ money(payment.amount) }} · {{ shortDate(payment.paidOn) }}
+                  @if (payment.reversedAt) {
+                    <small>Estornado · {{ payment.reversalReason }}</small>
+                  }
+                </span>
+                @if (!payment.reversedAt) {
+                  <div class="form">
+                    <label [for]="'reverse-reason-' + payment.id">Motivo da correção</label>
+                    <input pInputText [id]="'reverse-reason-' + payment.id"
+                           [name]="'reason-' + payment.id" [(ngModel)]="reversalReason" maxlength="255" />
+                    <p-button label="Estornar registro" severity="danger"
+                              [disabled]="busy() || !reversalReason.trim()" (onClick)="reverse(payment)" />
+                  </div>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </p-card>
+    }
+  </div>
+</div>

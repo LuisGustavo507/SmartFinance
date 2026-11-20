@@ -39,12 +39,18 @@ class JdbcWalletBalanceStore implements WalletBalanceStore {
                         WHERE t.owner_user_id = w.owner_user_id
                             AND t.conta_destino_id = w.id
                     ), 0)
-                    - COALESCE((
-                        SELECT SUM(p.valor) FROM pagamento_fatura p
-                        WHERE p.owner_user_id = w.owner_user_id
-                            AND p.conta_financeira_id = w.id
-                    ), 0)
-                FROM conta_financeira w
+                     - COALESCE((
+                         SELECT SUM(p.valor) FROM pagamento_fatura p
+                         WHERE p.owner_user_id = w.owner_user_id
+                             AND p.conta_financeira_id = w.id
+                     ), 0)
+                     - COALESCE((
+                         SELECT SUM(p.valor) FROM pagamento_conta_pagar p
+                         WHERE p.owner_user_id = w.owner_user_id
+                             AND p.conta_financeira_id = w.id
+                             AND p.estornado_em IS NULL
+                     ), 0)
+                 FROM conta_financeira w
                 WHERE w.owner_user_id = ? AND w.id = ?
                 """, BigDecimal.class, ownerUserId, walletId);
     }

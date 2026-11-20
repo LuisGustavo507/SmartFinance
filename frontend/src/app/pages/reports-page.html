@@ -50,8 +50,9 @@
             @if (point.realizedExpenses > 0) { − {{ money(point.realizedExpenses) }} }
           </span>
           <small class="muted">
-            Resultado realizado {{ money(point.realizedResult) }}
-            · projetado {{ money(point.projectedResult) }}
+             Resultado realizado {{ money(point.realizedResult) }}
+             · contas pendentes {{ money(point.pendingExpenses ?? 0) }}
+             · projetado {{ money(point.projectedResult) }}
           </small>
         </li>
       }
@@ -81,6 +82,9 @@
               }
               @if (entity.plannedExpenses > 0) {
                 previsto − {{ money(entity.plannedExpenses) }}
+              }
+              @if ((entity.pendingExpenses ?? 0) > 0) {
+                · contas pendentes − {{ money(entity.pendingExpenses ?? 0) }}
               }
             </small>
           </li>

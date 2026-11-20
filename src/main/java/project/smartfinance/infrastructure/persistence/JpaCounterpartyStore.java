@@ -71,12 +71,17 @@ class JpaCounterpartyStore implements CounterpartyStore {
         return entityManager.createNativeQuery("""
                 DELETE FROM entidade e
                 WHERE e.id = :id AND e.owner_user_id = :ownerId
-                    AND NOT EXISTS (
-                        SELECT 1 FROM lancamento_financeiro l
-                        WHERE l.owner_user_id = e.owner_user_id
-                            AND l.entidade_id = e.id
-                    )
-                """)
+                     AND NOT EXISTS (
+                         SELECT 1 FROM lancamento_financeiro l
+                         WHERE l.owner_user_id = e.owner_user_id
+                             AND l.entidade_id = e.id
+                     )
+                     AND NOT EXISTS (
+                         SELECT 1 FROM conta_pagar o
+                         WHERE o.owner_user_id = e.owner_user_id
+                             AND o.entidade_id = e.id
+                     )
+                 """)
                 .setParameter("id", id)
                 .setParameter("ownerId", ownerUserId)
                 .executeUpdate() == 1;

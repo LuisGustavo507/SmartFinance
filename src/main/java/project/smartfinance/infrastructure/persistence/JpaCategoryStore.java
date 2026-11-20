@@ -93,7 +93,12 @@ class JpaCategoryStore implements CategoryStore {
                 where c.ownerUserId = :ownerId and c.categoriaId = :id
                 """, Long.class)
                 .setParameter("ownerId", ownerUserId).setParameter("id", id).getSingleResult();
-        return entries > 0 || purchases > 0;
+        Long payables = ((Number) entityManager.createNativeQuery("""
+                SELECT count(*) FROM conta_pagar
+                WHERE owner_user_id = :ownerId AND categoria_id = :id
+                """).setParameter("ownerId", ownerUserId).setParameter("id", id)
+                .getSingleResult()).longValue();
+        return entries > 0 || purchases > 0 || payables > 0;
     }
 
     @Override

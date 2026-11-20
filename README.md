@@ -3,7 +3,7 @@
 Java 21, Spring Boot 4.1.2, PostgreSQL 18 e migrations SQL com Flyway.
 Há backend e um app Angular 21/PrimeNG com login, home de visão geral e
 páginas próprias para carteiras, lançamentos (avulsos, previstos e séries
-mensais finitas), cartões de crédito com compras parceladas e faturas,
+mensais finitas), contas a pagar, cartões de crédito com compras parceladas e faturas,
 transferências, categorias e entidades de contraparte.
 A interface usa a paleta fornecida (`#E9F1FA`, `#00ABE4`, `#FFFFFF`), menu
 lateral no desktop, gaveta no mobile e rotas reais por página; continua
@@ -27,8 +27,8 @@ mais amplo; este README descreve o que o código faz e como executá-lo.
 | `POST /api/categories` | `{ "name", "kind": "RECEITA" ou "DESPESA" }` → `201` com categoria |
 | `GET /api/categories` | Lista apenas as categorias do usuário autenticado |
 | `PATCH /api/categories/{id}/status` | `{ "active": false }` ou `{ "active": true }` → desativa/reativa categoria própria; alheia/inexistente → `404` |
-| `PUT /api/categories/{id}` | `{ "name", "kind" }` → nome pode ser alterado sempre; natureza só muda sem vínculos com lançamentos/compras → `409` se vinculada; alheia/inexistente → `404` |
-| `DELETE /api/categories/{id}` | Exclui categoria própria sem lançamentos/compras vinculados → `204`; vinculada → `409`; alheia/inexistente → `404` |
+| `PUT /api/categories/{id}` | `{ "name", "kind" }` → nome pode ser alterado sempre; natureza só muda sem vínculos com lançamentos/compras/contas a pagar → `409` se vinculada; alheia/inexistente → `404` |
+| `DELETE /api/categories/{id}` | Exclui categoria própria sem lançamentos/compras/contas a pagar vinculados → `204`; vinculada → `409`; alheia/inexistente → `404` |
 | `POST /api/entities` | `{ "name" }` → `201` com contraparte privada |
 | `GET /api/entities` | Lista somente as entidades do usuário autenticado |
 | `PATCH /api/entities/{id}/status` | `{ "active": false }` ou `{ "active": true }` → entidade atualizada, `404` se alheia/inexistente |
@@ -43,10 +43,18 @@ mais amplo; este README descreve o que o código faz e como executá-lo.
 | `POST /api/entries/{id}/cancel` | Cancela lançamento `PREVISTO` próprio → `204`; já processado → `409` |
 | `PUT /api/entries/{id}/entity` | `{ "entityId": 5 }` ou `{ "entityId": null }` → corrige **somente** a entidade do lançamento, inclusive já efetivado; alheio/inexistente → `404` |
 | `GET /api/entries?month=YYYY-MM[&entityId=ID]` | Realizados e previstos do usuário no mês de referência; exclui cancelados |
-| `GET /api/monthly-summary?month=YYYY-MM` | Totais realizados, previstos e resultado projetado do mês, com grupos por necessidade e por categoria |
-| `GET /api/monthly-summary?month=YYYY-MM&entityId=ID` | Mesmos totais **da entidade** (lançamentos e parcelas de cartão); créditos não são distribuídos |
-| `GET /api/reports/entity-period?from=YYYY-MM&to=YYYY-MM` | Receitas e despesas realizadas e previstas por entidade no período, com grupo “Sem entidade”; `from` depois de `to` → `400` |
-| `GET /api/reports/monthly?from=YYYY-MM&to=YYYY-MM` | Série mensal do período (receitas/despesas realizadas e previstas, resultado realizado e projetado); meses sem movimento vêm com zeros |
+| `POST /api/payables` | `{ "categoryId", "entityId"?, "description"?, "necessity", "amount", "dueOn" }` → `201`; obrigação sem conta pagadora e sem débito no saldo |
+| `GET /api/payables?month=YYYY-MM` | Contas do mês do vencimento e todas as atrasadas ainda não quitadas; inclui canceladas do mês para consulta histórica |
+| `GET /api/payables/{id}` | Conta própria; `404` para alheia/inexistente |
+| `PUT /api/payables/{id}` | Corrige obrigação sem pagamento válido; `409` após quitação/cancelamento |
+| `POST /api/payables/{id}/cancel` | Cancela obrigação sem pagamento válido → `204`; não altera saldo; histórico preservado |
+| `GET /api/payables/{id}/payments` | Histórico de pagamentos próprios, inclusive os estornados |
+| `POST /api/payables/{id}/payments` | `{ "walletId", "paidOn", "amount"? }` → `201`; pagamento único e integral, data efetiva não futura; se informado, `amount` deve igualar o principal; segunda quitação → `409` |
+| `POST /api/payables/{id}/payments/{paymentId}/reverse` | `{ "reason" }` → `200` com pagamento estornado e histórico; repetição → `409`; restaura pendência e saldo estimado |
+| `GET /api/monthly-summary?month=YYYY-MM` | Totais realizados, previstos, `pendingExpenses` (contas a pagar não quitadas) e resultado projetado do mês, com grupos por necessidade e por categoria |
+| `GET /api/monthly-summary?month=YYYY-MM&entityId=ID` | Mesmos totais **da entidade** (lançamentos, parcelas de cartão e contas a pagar); créditos não são distribuídos |
+| `GET /api/reports/entity-period?from=YYYY-MM&to=YYYY-MM` | Receitas e despesas realizadas, previstas e pendentes por entidade no período, com grupo “Sem entidade”; `from` depois de `to` → `400` |
+| `GET /api/reports/monthly?from=YYYY-MM&to=YYYY-MM` | Série mensal do período (receitas/despesas realizadas e previstas, obrigações pendentes, resultado realizado e projetado); meses sem movimento vêm com zeros |
 | `POST /api/transfers` | `{ "sourceWalletId", "destinationWalletId", "amount", "description", "transferredAt" }` → `201` |
 | `GET /api/transfers?month=YYYY-MM` | Transferências do usuário no mês do instante ocorrido em UTC |
 | `POST /api/cards` | `{ "name", "institutionName", "closingDay", "dueDay", "creditLimit"?, "defaultPaymentWalletId"? }` → `201` com o cartão |
@@ -83,7 +91,7 @@ Outra pessoa não consegue listá-la nem consultá-la pelo ID (resposta `404`).
 As respostas de carteira incluem `estimatedBalance`: saldo inicial **mais**
 receitas realizadas **menos** despesas realizadas **menos** transferências
 enviadas **mais** transferências recebidas **menos** pagamentos de fatura de
-cartão. É calculado sob demanda a partir
+cartão **menos** pagamentos de contas a pagar não estornados. É calculado sob demanda a partir
 dos fatos registrados, pode ser negativo e não representa saldo bancário
 confirmado. Alteração e exclusão de carteiras, edição de lançamentos já
 efetivados e conciliação bancária ainda não existem.
@@ -93,10 +101,10 @@ enviado pelo cliente é ignorado. O nome é aparado nas pontas; dentro da
 mesma natureza (`kind`), não pode haver nome repetido para o mesmo usuário
 (`409`). Nomes iguais em naturezas diferentes ou em usuários diferentes são
 permitidos. Categoria recém-criada é ativa. Pode ser desativada e reativada
-sem perder o histórico; quando inativa não aceita novos lançamentos nem
-compras, mas segue consultável. Seu nome pode ser alterado mesmo após o uso,
+sem perder o histórico; quando inativa não aceita novos lançamentos, compras
+nem contas a pagar, mas segue consultável. Seu nome pode ser alterado mesmo após o uso,
 refletindo-se também nos agrupamentos históricos. A natureza só muda se
-nenhum lançamento nem compra estiver vinculado (inclusive cancelados);
+nenhum lançamento, compra nem conta a pagar estiver vinculado (inclusive cancelados);
 exclusão permanente também exige ausência de vínculos.
 Descrições de lançamentos e compras no cartão são opcionais; ausência é
 persistida como texto vazio e mostrada como “Sem descrição”.
@@ -143,7 +151,41 @@ mês de referência continua sendo o da data prevista. O cancelado não é
 processado nem aparece na listagem comum. O job e o cancelamento usam
 atualização condicional para evitar dupla transição. O fuso é configurável
 por `smartfinance.time-zone`; timestamps persistidos e JWT continuam em UTC.
-Estorno e conciliação bancária ainda não existem.
+Estorno de lançamentos comuns e conciliação bancária ainda não existem.
+
+### Contas a pagar
+
+Uma conta a pagar é uma **obrigação**, não um boleto nem um lançamento
+`PREVISTO`: registra valor, categoria de despesa, necessidade, vencimento e
+contraparte opcional, mas não escolhe conta financeira no cadastro e **não**
+reduz `estimatedBalance` no vencimento. Pode ser cadastrada depois de vencida;
+continua `ATRASADA` até o pagamento efetivo, sem job de efetivação. Somente
+o pagamento integral registra saída de caixa; a conta usada e a data efetiva
+(`paidOn`, dia no fuso de negócio, não futura e não anterior ao saldo inicial)
+são informadas no momento da quitação. Não são aceitos pagamentos parciais nem
+segundo pagamento válido. Saldo insuficiente não impede o registro do fato.
+
+Uma conta não quitada aparece em `pendingExpenses` no mês do vencimento,
+inclusive depois do prazo; quando quitada, **migra inteira** para
+`realizedExpenses` do mesmo mês. `projectedResult` inclui a obrigação uma
+única vez, quitada ou pendente; o saldo estimado só cai na conta realmente
+usada para pagar. Um pagamento tardio pode, assim, alterar o resumo histórico
+do mês do vencimento, mas não o mês de pagamento como despesa adicional.
+Faturas fechadas não pagas continuam em `realizedExpenses` conforme a regra
+anterior: o nome desse indicador não significa exclusivamente dinheiro pago.
+Resumo e relatórios por categoria, necessidade e entidade incluem a pendência
+em campo separado. A listagem por mês também expõe atrasadas de meses
+anteriores para que não desapareçam ao trocar o filtro.
+
+Estorno de **registro incorreto** de pagamento exige motivo; preserva o
+pagamento original e sua data, marca o estorno e neutraliza o efeito estimado
+no saldo e no resultado mensal. Não representa uma devolução bancária real.
+Depois de estornar, pode-se registrar novo pagamento integral em outra conta
+ou corrigir/cancelar a obrigação (sem pagamentos válidos). Com pagamento
+válido, não se pode editar ou cancelar. O cadastro de obrigação e o registro
+de despesa comum/cartão são fluxos independentes: pagar a obrigação nunca
+gera outro lançamento, mas dois cadastros manuais parecidos não são
+deduplicados automaticamente.
 
 Uma série mensal finita é criada em uma única transação com **1 a 120**
 ocorrências, todas `PREVISTO` inicialmente. A primeira data deve ser futura

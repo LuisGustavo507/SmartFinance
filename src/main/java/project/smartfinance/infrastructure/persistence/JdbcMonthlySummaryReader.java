@@ -80,6 +80,20 @@ class JdbcMonthlySummaryReader implements MonthlySummaryReader {
         var expenses = entries.expenses().add(installments.expenses());
         var plannedIncome = entries.plannedIncome();
         var plannedExpenses = entries.plannedExpenses().add(installments.plannedExpenses());
+        var obligations = jdbc.queryForObject("""
+                SELECT COALESCE(SUM(o.valor) FILTER (WHERE p.id IS NOT NULL), 0),
+                    COALESCE(SUM(o.valor) FILTER (WHERE p.id IS NULL), 0)
+                FROM conta_pagar o
+                LEFT JOIN pagamento_conta_pagar p ON p.conta_pagar_id = o.id
+                    AND p.owner_user_id = o.owner_user_id AND p.estornado_em IS NULL
+                WHERE o.owner_user_id = ? AND o.cancelada_em IS NULL
+                    AND o.data_vencimento >= ? AND o.data_vencimento < ?
+                """ + entityClause(entityId, "o.entidade_id"),
+                (rs, row) -> new PayableTotals(rs.getBigDecimal(1), rs.getBigDecimal(2)),
+                new Params().add(ownerUserId, month, month.plusMonths(1))
+                        .entity(entityId).toArray());
+        expenses = expenses.add(obligations.paid());
+        var pendingExpenses = obligations.pending();
         // Credits are never distributed by entity: they stay in their own indicators.
         var credits = jdbc.queryForObject("""
                 SELECT COALESCE((
@@ -99,7 +113,7 @@ class JdbcMonthlySummaryReader implements MonthlySummaryReader {
         List<NecessityTotal> necessityTotals = jdbc.query("""
                 WITH expenses AS (
                     SELECT l.necessidade, l.valor,
-                        l.status = 'EFETIVADO' AS realized
+                        l.status = 'EFETIVADO' AS realized, FALSE AS pending
                     FROM lancamento_financeiro l
                     JOIN categoria c ON c.id = l.categoria_id
                         AND c.owner_user_id = l.owner_user_id
@@ -109,7 +123,7 @@ class JdbcMonthlySummaryReader implements MonthlySummaryReader {
                 """ + entityClause(entityId, "l.entidade_id") + """
                     UNION ALL
                     SELECT purchase.necessidade, installment.valor,
-                        statement.status IN ('FECHADA', 'ATRASADA', 'PAGA')
+                        statement.status IN ('FECHADA', 'ATRASADA', 'PAGA'), FALSE
                     FROM parcela_cartao installment
                     JOIN compra_cartao purchase ON purchase.id = installment.compra_cartao_id
                         AND purchase.owner_user_id = installment.owner_user_id
@@ -121,28 +135,38 @@ class JdbcMonthlySummaryReader implements MonthlySummaryReader {
                             OR (statement.status IN ('PROJETADA', 'ABERTA')
                                 AND installment.status = 'ATIVA'))
                 """ + entityClause(entityId, "purchase.entidade_id") + """
-                )
+                    UNION ALL
+                    SELECT o.necessidade, o.valor, p.id IS NOT NULL, p.id IS NULL
+                    FROM conta_pagar o
+                    LEFT JOIN pagamento_conta_pagar p ON p.conta_pagar_id = o.id
+                        AND p.owner_user_id = o.owner_user_id AND p.estornado_em IS NULL
+                    WHERE o.owner_user_id = ? AND o.cancelada_em IS NULL
+                        AND o.data_vencimento >= ? AND o.data_vencimento < ?
+                """ + entityClause(entityId, "o.entidade_id") + """
+                    )
                 SELECT necessidade, COALESCE(SUM(valor) FILTER (WHERE realized), 0),
-                    COALESCE(SUM(valor) FILTER (WHERE NOT realized), 0)
+                    COALESCE(SUM(valor) FILTER (WHERE NOT realized AND NOT pending), 0),
+                    COALESCE(SUM(valor) FILTER (WHERE pending), 0)
                 FROM expenses
                 GROUP BY necessidade
                 ORDER BY necessidade NULLS LAST
                 """, (rs, row) -> new NecessityTotal(
                 rs.getString(1) == null ? null : Necessity.valueOf(rs.getString(1)),
-                rs.getBigDecimal(2), rs.getBigDecimal(3)),
+                rs.getBigDecimal(2), rs.getBigDecimal(3), rs.getBigDecimal(4)),
                 new Params().add(ownerUserId, month).entity(entityId)
-                        .add(ownerUserId, month).entity(entityId).toArray());
+                        .add(ownerUserId, month).entity(entityId)
+                        .add(ownerUserId, month, month.plusMonths(1)).entity(entityId).toArray());
         List<CategoryTotal> categoryTotals = jdbc.query("""
                 WITH movimentos AS (
                     SELECT l.categoria_id, l.valor,
-                        l.status = 'EFETIVADO' AS realizado
+                        l.status = 'EFETIVADO' AS realizado, FALSE AS pendente
                     FROM lancamento_financeiro l
                     WHERE l.owner_user_id = ? AND l.mes_referencia = ?
                         AND l.status IN ('PREVISTO', 'EFETIVADO')
                 """ + entityClause(entityId, "l.entidade_id") + """
                     UNION ALL
                     SELECT c.categoria_id, p.valor,
-                        f.status IN ('FECHADA', 'ATRASADA', 'PAGA')
+                        f.status IN ('FECHADA', 'ATRASADA', 'PAGA'), FALSE
                     FROM parcela_cartao p
                     JOIN compra_cartao c ON c.id = p.compra_cartao_id
                         AND c.owner_user_id = p.owner_user_id
@@ -154,15 +178,25 @@ class JdbcMonthlySummaryReader implements MonthlySummaryReader {
                             OR (f.status IN ('PROJETADA', 'ABERTA')
                                 AND p.status = 'ATIVA'))
                 """ + entityClause(entityId, "c.entidade_id") + """
-                )
+                    UNION ALL
+                    SELECT o.categoria_id, o.valor, p.id IS NOT NULL, p.id IS NULL
+                    FROM conta_pagar o
+                    LEFT JOIN pagamento_conta_pagar p ON p.conta_pagar_id = o.id
+                        AND p.owner_user_id = o.owner_user_id AND p.estornado_em IS NULL
+                    WHERE o.owner_user_id = ? AND o.cancelada_em IS NULL
+                        AND o.data_vencimento >= ? AND o.data_vencimento < ?
+                """ + entityClause(entityId, "o.entidade_id") + """
+                    )
                 SELECT m.categoria_id, cat.nome, cat.natureza,
                     COALESCE(SUM(m.valor) FILTER (WHERE m.realizado
                         AND cat.natureza = 'RECEITA'), 0),
                     COALESCE(SUM(m.valor) FILTER (WHERE m.realizado
                         AND cat.natureza = 'DESPESA'), 0),
-                    COALESCE(SUM(m.valor) FILTER (WHERE NOT m.realizado
+                    COALESCE(SUM(m.valor) FILTER (WHERE NOT m.realizado AND NOT m.pendente
                         AND cat.natureza = 'RECEITA'), 0),
-                    COALESCE(SUM(m.valor) FILTER (WHERE NOT m.realizado
+                    COALESCE(SUM(m.valor) FILTER (WHERE NOT m.realizado AND NOT m.pendente
+                        AND cat.natureza = 'DESPESA'), 0),
+                    COALESCE(SUM(m.valor) FILTER (WHERE m.pendente
                         AND cat.natureza = 'DESPESA'), 0)
                 FROM movimentos m
                 JOIN categoria cat ON cat.id = m.categoria_id
@@ -171,12 +205,16 @@ class JdbcMonthlySummaryReader implements MonthlySummaryReader {
                 ORDER BY cat.natureza DESC, cat.nome, m.categoria_id
                 """, (rs, row) -> new CategoryTotal(rs.getInt(1), rs.getString(2),
                 Category.Kind.valueOf(rs.getString(3)), rs.getBigDecimal(4),
-                rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7)),
+                rs.getBigDecimal(5), rs.getBigDecimal(6), rs.getBigDecimal(7),
+                rs.getBigDecimal(8)),
                 new Params().add(ownerUserId, month).entity(entityId)
-                        .add(ownerUserId, month).entity(entityId).add(ownerUserId).toArray());
+                        .add(ownerUserId, month).entity(entityId)
+                        .add(ownerUserId, month, month.plusMonths(1)).entity(entityId)
+                        .add(ownerUserId).toArray());
         return new MonthlySummary(month, income, expenses, income.subtract(expenses),
-                plannedIncome, plannedExpenses,
-                income.add(plannedIncome).subtract(expenses).subtract(plannedExpenses),
+                plannedIncome, plannedExpenses, pendingExpenses,
+                income.add(plannedIncome).subtract(expenses).subtract(plannedExpenses)
+                        .subtract(pendingExpenses),
                 credits.generated(), credits.applied(), necessityTotals, categoryTotals);
     }
 
@@ -210,5 +248,8 @@ class JdbcMonthlySummaryReader implements MonthlySummaryReader {
     }
 
     private record CreditTotals(BigDecimal generated, BigDecimal applied) {
+    }
+
+    private record PayableTotals(BigDecimal paid, BigDecimal pending) {
     }
 }

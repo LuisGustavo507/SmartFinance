@@ -76,6 +76,7 @@ export interface MonthlySummary {
   realizedResult: number;
   plannedIncome: number;
   plannedExpenses: number;
+  pendingExpenses?: number;
   projectedResult: number;
   reversalCreditsGenerated?: number;
   reversalCreditsApplied?: number;
@@ -91,6 +92,7 @@ export interface CategoryTotal {
   realizedExpenses: number;
   plannedIncome: number;
   plannedExpenses: number;
+  pendingExpenses?: number;
 }
 
 export interface EntityPeriodTotal {
@@ -100,6 +102,7 @@ export interface EntityPeriodTotal {
   realizedExpenses: number;
   plannedIncome: number;
   plannedExpenses: number;
+  pendingExpenses?: number;
 }
 
 export interface EntityPeriodReport {
@@ -114,6 +117,7 @@ export interface MonthlyPoint {
   realizedExpenses: number;
   plannedIncome: number;
   plannedExpenses: number;
+  pendingExpenses?: number;
   realizedResult: number;
   projectedResult: number;
 }
@@ -122,6 +126,36 @@ export interface NecessityTotal {
   necessity: Necessity | null;
   realizedExpenses: number;
   plannedExpenses: number;
+  pendingExpenses?: number;
+}
+
+export type PayableStatus = 'PENDENTE' | 'ATRASADA' | 'QUITADA' | 'CANCELADA';
+
+export interface Payable {
+  id: number;
+  ownerUserId: number;
+  categoryId: number;
+  categoryName: string;
+  entityId: number | null;
+  entityName: string | null;
+  description: string;
+  necessity: Necessity;
+  amount: number;
+  dueOn: string;
+  status: PayableStatus;
+  createdAt: string;
+}
+
+export interface PayablePayment {
+  id: number;
+  ownerUserId: number;
+  payableId: number;
+  walletId: number;
+  amount: number;
+  paidOn: string;
+  createdAt: string;
+  reversedAt: string | null;
+  reversalReason: string | null;
 }
 
 export interface Transfer {
@@ -333,6 +367,45 @@ export class Api {
 
   cancelEntry(id: number): Observable<void> {
     return this.http.post<void>(`/api/entries/${id}/cancel`, {});
+  }
+
+  payables(month: string): Observable<Payable[]> {
+    return this.http.get<Payable[]>('/api/payables', { params: { month } });
+  }
+
+  payable(id: number): Observable<Payable> {
+    return this.http.get<Payable>(`/api/payables/${id}`);
+  }
+
+  createPayable(data: {
+    categoryId: number; entityId: number | null; description: string;
+    necessity: Necessity; amount: number; dueOn: string
+  }): Observable<Payable> {
+    return this.http.post<Payable>('/api/payables', data);
+  }
+
+  updatePayable(id: number, data: {
+    categoryId: number; entityId: number | null; description: string;
+    necessity: Necessity; amount: number; dueOn: string
+  }): Observable<Payable> {
+    return this.http.put<Payable>(`/api/payables/${id}`, data);
+  }
+
+  cancelPayable(id: number): Observable<void> {
+    return this.http.post<void>(`/api/payables/${id}/cancel`, {});
+  }
+
+  payablePayments(id: number): Observable<PayablePayment[]> {
+    return this.http.get<PayablePayment[]>(`/api/payables/${id}/payments`);
+  }
+
+  payPayable(id: number, walletId: number, paidOn: string): Observable<PayablePayment> {
+    return this.http.post<PayablePayment>(`/api/payables/${id}/payments`, { walletId, paidOn });
+  }
+
+  reversePayablePayment(id: number, paymentId: number, reason: string): Observable<PayablePayment> {
+    return this.http.post<PayablePayment>(
+      `/api/payables/${id}/payments/${paymentId}/reverse`, { reason });
   }
 
   updateEntryEntity(id: number, entityId: number | null): Observable<Entry> {
