@@ -153,4 +153,26 @@ describe('EntriesPage', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('#entry-necessity')).toBeNull();
   });
+
+  it('hides the new-entity field when an existing entity is selected', () => {
+    const fixture = TestBed.createComponent(EntriesPage);
+    const store = TestBed.inject(FinanceStore);
+    store.counterparties.set([{ id: 5, ownerUserId: 1, name: 'Empregador', active: true }]);
+    store.entryEntityId = 5;
+    fixture.detectChanges();
+    const page = fixture.nativeElement as HTMLElement;
+
+    expect(page.querySelector('#entry-entity')).not.toBeNull();
+    expect(page.querySelector('#entry-new-entity')).toBeNull();
+    expect(page.textContent).not.toContain('Ou nova entidade');
+  });
+
+  it('offers the new-entity field while the selection is "Sem entidade"', () => {
+    const fixture = TestBed.createComponent(EntriesPage);
+    fixture.detectChanges();
+    const page = fixture.nativeElement as HTMLElement;
+
+    expect(page.querySelector('#entry-new-entity')).not.toBeNull();
+    expect(page.textContent).toContain('Ou nova entidade');
+  });
 });

@@ -405,11 +405,6 @@ export class FinanceStore {
 
   async createEntry(): Promise<void> {
     if (this.busy()) return;
-    if (this.entryEntityId !== null && this.entryNewEntityName.trim()) {
-      this.notice.set('');
-      this.error.set('Escolha uma entidade existente ou informe uma nova, não as duas.');
-      return;
-    }
     if (this.entryPaymentMethod === 'card') {
       this.error.set('');
       this.notice.set('');
@@ -538,17 +533,19 @@ export class FinanceStore {
   }
 
   entryEntityPayload(): { entityId: number | null; newEntityName: string | null } {
+    if (this.entryEntityId !== null) {
+      return { entityId: this.entryEntityId, newEntityName: null };
+    }
     const name = this.entryNewEntityName.trim();
-    return name
-      ? { entityId: null, newEntityName: name }
-      : { entityId: this.entryEntityId, newEntityName: null };
+    return { entityId: null, newEntityName: name ? name : null };
   }
 
   purchaseEntityPayload(): { entityId: number | null; newEntityName: string | null } {
+    if (this.purchaseEntityId !== null) {
+      return { entityId: this.purchaseEntityId, newEntityName: null };
+    }
     const name = this.purchaseNewEntityName.trim();
-    return name
-      ? { entityId: null, newEntityName: name }
-      : { entityId: this.purchaseEntityId, newEntityName: null };
+    return { entityId: null, newEntityName: name ? name : null };
   }
 
   editCategoryIsExpense(): boolean {

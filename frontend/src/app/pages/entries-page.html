@@ -184,13 +184,12 @@
           @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
         }
       </select>
-      <label for="entry-new-entity">Ou nova entidade</label>
-      <input pInputText id="entry-new-entity" name="entry-new-entity"
-             [(ngModel)]="store.entryNewEntityName" maxlength="120"
-             placeholder="Cadastrar junto com o registro" />
-      <small class="muted">Preencha a nova entidade apenas se não escolher uma acima.</small>
-      @if (attempted && store.entryEntityId !== null && store.entryNewEntityName.trim()) {
-        <small class="field-error">Use apenas uma das opções de entidade.</small>
+      @if (store.entryEntityId === null) {
+        <label for="entry-new-entity">Ou nova entidade</label>
+        <input pInputText id="entry-new-entity" name="entry-new-entity"
+               [(ngModel)]="store.entryNewEntityName" maxlength="120"
+               placeholder="Cadastrar junto com o registro" />
+        <small class="muted">Preencha para cadastrar uma entidade junto com este registro.</small>
       }
       <label for="entry-description">Descrição (opcional)</label>
       <input pInputText id="entry-description" name="entry-description"

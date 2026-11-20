@@ -669,6 +669,22 @@ describe('FinanceStore', () => {
     expect(store.error()).toBe('');
   });
 
+  it('prefers the selected entity over a leftover new-entity name', () => {
+    store.entryEntityId = 5;
+    store.entryNewEntityName = 'Rascunho antigo';
+    expect(store.entryEntityPayload()).toEqual({ entityId: 5, newEntityName: null });
+
+    store.entryEntityId = null;
+    expect(store.entryEntityPayload()).toEqual({ entityId: null, newEntityName: 'Rascunho antigo' });
+
+    store.entryNewEntityName = '   ';
+    expect(store.entryEntityPayload()).toEqual({ entityId: null, newEntityName: null });
+
+    store.purchaseEntityId = 9;
+    store.purchaseNewEntityName = 'Outro rascunho';
+    expect(store.purchaseEntityPayload()).toEqual({ entityId: 9, newEntityName: null });
+  });
+
   it('corrects the entity of an effected entry without changing its amounts', async () => {
     const entry: Entry = {
       id: 11, ownerUserId: 1, walletId: 3, categoryId: 4,
