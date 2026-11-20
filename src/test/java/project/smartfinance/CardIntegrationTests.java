@@ -158,7 +158,7 @@ class CardIntegrationTests {
 
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         LocalDate purchaseDate = today;
-        LocalDate closing = closingOnOrAfter(28, purchaseDate);
+        LocalDate closing = closingAfter(28, purchaseDate);
         LocalDate due = dueDate(28, 5, closing);
         YearMonth referenceMonth = YearMonth.from(due);
 
@@ -254,7 +254,7 @@ class CardIntegrationTests {
                 .andExpect(status().isCreated()).andReturn());
 
         LocalDate purchaseDate = LocalDate.now(ZoneOffset.UTC).plusMonths(2);
-        LocalDate closing = closingOnOrAfter(10, purchaseDate);
+        LocalDate closing = closingAfter(10, purchaseDate);
         LocalDate due = dueDate(10, 20, closing);
         YearMonth referenceMonth = YearMonth.from(due);
 
@@ -458,10 +458,10 @@ class CardIntegrationTests {
                 """, Integer.class, ownerId)).isEqualTo(1);
     }
 
-    private LocalDate closingOnOrAfter(int closingDay, LocalDate date) {
+    private LocalDate closingAfter(int closingDay, LocalDate date) {
         YearMonth month = YearMonth.from(date);
         LocalDate candidate = month.atDay(closingDay);
-        return candidate.isBefore(date) ? candidate.plusMonths(1) : candidate;
+        return !candidate.isAfter(date) ? candidate.plusMonths(1) : candidate;
     }
 
     private LocalDate dueDate(int closingDay, int dueDay, LocalDate closing) {

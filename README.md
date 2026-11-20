@@ -203,10 +203,12 @@ vão, um a um, às primeiras parcelas; a quantidade de parcelas não pode
 exceder o total em centavos, para que nenhuma parcela fique zerada.
 
 A fatura que recebe a compra é a que **fecha no primeiro dia de fechamento
-igual ou posterior à data da compra**; o vencimento é o dia de vencimento do
+posterior à data da compra**; o vencimento é o dia de vencimento do
 mês da fatura e, quando o dia de vencimento não é maior que o de fechamento,
-o vencimento cai no mês seguinte. O ciclo da fatura vai do dia seguinte ao
-fechamento anterior até o dia de fechamento, inclusive. A fatura
+o vencimento cai no mês seguinte. O ciclo vai do dia do fechamento anterior,
+inclusive, até a véspera do fechamento atual. Por exemplo, no cartão que
+fecha dia 5 e vence dia 14, compras em 04/11 vencem em 14/11, mas compras
+em 05/11 vencem em 14/12. A fatura
 pertence ao **mês do vencimento** e há no máximo uma por cartão e mês. A
 parcela 1 fica no ciclo da compra e as seguintes em ciclos mensais
 consecutivos.
@@ -215,10 +217,11 @@ Os estados de fatura são `PROJETADA` (ciclo ainda não começou), `ABERTA`
 (ciclo em curso), `FECHADA` (ciclo encerrado, aguardando pagamento), `PAGA`
 (quitada) e `ATRASADA` (vencida sem quitação). As transições são dirigidas
 pelas **datas de calendário** (com o dia corrente no fuso de negócio), não
-por um botão: o ciclo que começou vira aberto, o ciclo que terminou vira
-fechado — ou **pago com valor zero** quando não há cobrança ativa — e a
-fatura fechada que passou do vencimento vira atrasada. Um
-job diário (00:10 de `America/Sao_Paulo`) e a inicialização da aplicação
+por um botão: às **00:00 do dia de fechamento no fuso de negócio**
+(`America/Sao_Paulo` por padrão), o ciclo anterior fecha e o seguinte abre.
+O ciclo encerrado vira fechado — ou **pago com valor zero** quando não há
+cobrança ativa — e a fatura fechada que passou do vencimento vira atrasada. Um
+job diário (00:05:10 no fuso configurado) e a inicialização da aplicação
 aplicam essas transições; a listagem de faturas, o registro de compra e o
 pagamento também as regularizam antes de decidir, então o atraso do job não
 amplia ciclo nenhum. O total da fatura aberta é a soma das parcelas ativas e
@@ -230,7 +233,8 @@ O pagamento é **único e integral**, feito por uma carteira do próprio usuári
 fatura `FECHADA` ou `ATRASADA` pode ser paga (outro estado → `409`), o valor
 pago é sempre o total fechado (um valor diferente → `400`) e a data do
 pagamento **não pode ser antecipada** ao fechamento (precisa ser igual ou
-posterior ao dia seguinte de `dataFechamento`), nem ser futura, nem anteceder
+posterior às 00:00 do próprio dia de `dataFechamento` no fuso de negócio),
+nem ser futura, nem anteceder
 o saldo inicial da conta. O pagamento **não cria despesa**: ele reduz o
 saldo estimado da carteira que pagou. Uma fatura sem cobranças ativas é paga
 automaticamente com valor zero e sem registro de pagamento.

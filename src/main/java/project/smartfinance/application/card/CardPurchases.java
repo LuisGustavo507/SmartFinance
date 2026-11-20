@@ -42,7 +42,8 @@ public class CardPurchases {
             int installmentCount, Integer entityId, String necessity,
             String newEntityName) {
         CreditCard card = cards.findForOwner(cardId, ownerUserId)
-                .orElseThrow(CardReferenceNotFoundException::new);        if (!card.active()) {
+                .orElseThrow(CardReferenceNotFoundException::new);
+        if (!card.active()) {
             throw new CardInactiveException();
         }
         Category category = categories.findForOwner(categoryId, ownerUserId)
@@ -74,11 +75,11 @@ public class CardPurchases {
         String trimmedDescription = description == null ? "" : description.strip();
 
         LocalDate today = LocalDate.now(clock);
-        // The cycle boundary in UTC prevails over a stale status in the database.
+        // The business-day boundary prevails over a stale status in the database.
         transitions.regularize(today, OffsetDateTime.now(clock));
         StatementPeriod first = CardCycles.periodFor(card.closingDay(), card.dueDay(),
                 purchasedOn);
-        if (first.closingDate().isBefore(today)) {
+        if (!first.closingDate().isAfter(today)) {
             throw new CardStatementClosedException();
         }
 

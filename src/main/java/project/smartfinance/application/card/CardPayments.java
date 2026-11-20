@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import project.smartfinance.application.wallet.WalletStore;
@@ -33,7 +32,7 @@ public class CardPayments {
     @Transactional
     public CardPayment pay(int ownerUserId, int statementId, int walletId,
             BigDecimal amount, OffsetDateTime paidOn) {
-        // The cycle boundary in UTC prevails over a stale status in the database.
+        // The business-day boundary prevails over a stale status in the database.
         transitions.regularize(LocalDate.now(clock), OffsetDateTime.now(clock));
         CardStatement statement = statements.findStatement(ownerUserId, statementId)
                 .orElseThrow(CardReferenceNotFoundException::new);
@@ -53,8 +52,9 @@ public class CardPayments {
         if (!wallet.active()) {
             throw new CardReferenceNotFoundException();
         }
-        LocalDate paidDay = paidOn.atZoneSameInstant(ZoneOffset.UTC).toLocalDate();
-        if (paidDay.isBefore(statement.closingDate().plusDays(1))) {
+        LocalDate paidDay = paidOn.atZoneSameInstant(clock.getZone()).toLocalDate();
+        if (paidOn.toInstant().isBefore(
+                statement.closingDate().atStartOfDay(clock.getZone()).toInstant())) {
             throw new IllegalArgumentException(
                     "O pagamento não pode ser antecipado ao fechamento da fatura.");
         }

@@ -451,7 +451,7 @@ class CardStatementPaymentIntegrationTests {
                 .cookie(csrf, access).header("X-XSRF-TOKEN", csrf.getValue())
                 .contentType("application/json")
                 .content("""
-                        {"walletId":%d,"amount":%s,"paidOn":"%sT00:00:00Z"}
+                        {"walletId":%d,"amount":%s,"paidOn":"%sT00:00:00-03:00"}
                         """.formatted(walletId, amount == null ? "null" : amount, paidOn));
     }
 

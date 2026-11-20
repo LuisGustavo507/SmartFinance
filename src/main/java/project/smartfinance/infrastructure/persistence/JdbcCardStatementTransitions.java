@@ -2,6 +2,7 @@ package project.smartfinance.infrastructure.persistence;
 
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -13,9 +14,11 @@ import project.smartfinance.application.card.CardStatementTransitions;
 class JdbcCardStatementTransitions implements CardStatementTransitions {
 
     private final JdbcTemplate jdbc;
+    private final Clock clock;
 
-    JdbcCardStatementTransitions(JdbcTemplate jdbc) {
+    JdbcCardStatementTransitions(JdbcTemplate jdbc, Clock clock) {
         this.jdbc = jdbc;
+        this.clock = clock;
     }
 
     @Override
@@ -23,7 +26,7 @@ class JdbcCardStatementTransitions implements CardStatementTransitions {
         int opened = jdbc.update("""
                 UPDATE fatura_cartao SET status = 'ABERTA'
                 WHERE status = 'PROJETADA'
-                    AND (data_fechamento - INTERVAL '1 month' + INTERVAL '1 day')::date <= ?
+                    AND (data_fechamento - INTERVAL '1 month')::date <= ?
                 """, Date.valueOf(today));
 
         // Chronological order matters: a credit left over from one closing must
@@ -31,7 +34,7 @@ class JdbcCardStatementTransitions implements CardStatementTransitions {
         List<Closing> closings = jdbc.query("""
                 SELECT id, owner_user_id, cartao_id, data_fechamento
                 FROM fatura_cartao
-                WHERE status = 'ABERTA' AND data_fechamento < ?
+                WHERE status = 'ABERTA' AND data_fechamento <= ?
                 ORDER BY data_fechamento, id
                 FOR UPDATE
                 """, (rs, row) -> new Closing(rs.getInt(1), rs.getInt(2),
@@ -60,12 +63,13 @@ class JdbcCardStatementTransitions implements CardStatementTransitions {
                     AND p.owner_user_id = c.owner_user_id
                 LEFT JOIN aplicacao_credito a ON a.credito_estorno_id = c.id
                 WHERE c.owner_user_id = ? AND p.cartao_id = ?
-                    AND c.criado_em < (?::date + INTERVAL '1 day')
+                    AND c.criado_em < ?
                 GROUP BY c.id
                 HAVING c.valor_original > COALESCE(SUM(a.valor), 0)
                 ORDER BY MIN(c.criado_em), c.id
                 """, (rs, row) -> new Credit(rs.getInt(1), rs.getBigDecimal(2)),
-                closing.ownerId(), closing.cardId(), Date.valueOf(closing.closingDate()));
+                closing.ownerId(), closing.cardId(),
+                closing.closingDate().atStartOfDay(clock.getZone()).toOffsetDateTime());
         for (Credit credit : credits) {
             if (remaining.signum() == 0) {
                 break;

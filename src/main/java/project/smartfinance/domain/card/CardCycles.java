@@ -6,10 +6,10 @@ import java.time.YearMonth;
 /**
  * Cycles of a credit card statement.
  *
- * <p>The statement that receives a purchase closes on the first closing day on
- * or after the purchase date and is due on the due day of its month. When the
- * due day is not greater than the closing day, the due date falls in the month
- * after the closing date.
+ * <p>The closing day starts the next cycle. A purchase on that day belongs to
+ * the statement closing the following month; a purchase on the previous day
+ * belongs to the statement closing that day. When the due day is not greater
+ * than the closing day, the due date falls in the month after the closing date.
  */
 public final class CardCycles {
 
@@ -17,7 +17,7 @@ public final class CardCycles {
     }
 
     public static StatementPeriod periodFor(int closingDay, int dueDay, LocalDate date) {
-        LocalDate closing = closingOnOrAfter(closingDay, date);
+        LocalDate closing = closingAfter(closingDay, date);
         return periodFromClosing(closingDay, dueDay, closing);
     }
 
@@ -27,12 +27,12 @@ public final class CardCycles {
                 ? closing.plusMonths(1).withDayOfMonth(dueDay)
                 : closing.withDayOfMonth(dueDay);
         return new StatementPeriod(closing, due, YearMonth.from(due),
-                closing.minusMonths(1).plusDays(1));
+                closing.minusMonths(1));
     }
 
-    private static LocalDate closingOnOrAfter(int closingDay, LocalDate date) {
+    private static LocalDate closingAfter(int closingDay, LocalDate date) {
         LocalDate candidate = date.withDayOfMonth(1).withDayOfMonth(closingDay);
-        if (candidate.isBefore(date)) {
+        if (!candidate.isAfter(date)) {
             return candidate.plusMonths(1);
         }
         return candidate;

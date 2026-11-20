@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +46,7 @@ class JpaCardPurchaseStore implements CardPurchaseStore {
         entity.setEntidadeId(entityId);
         entity.setDescricao(description);
         entity.setValorTotal(totalAmount);
-        entity.setCompradaEm(createdAt);
+        entity.setCompradaEm(purchasedOn.atStartOfDay(clock.getZone()).toOffsetDateTime());
         entity.setQuantidadeParcelas((short) installmentCount);
         entity.setNecessidade(necessity);
         entity.setStatus("ATIVA");
@@ -177,7 +176,7 @@ class JpaCardPurchaseStore implements CardPurchaseStore {
         if (!"PROJETADA".equals(statement.getStatus())) {
             return;
         }
-        LocalDate cycleStart = statement.getDataFechamento().minusMonths(1).plusDays(1);
+        LocalDate cycleStart = statement.getDataFechamento().minusMonths(1);
         if (!cycleStart.isAfter(LocalDate.now(clock))) {
             statement.setStatus("ABERTA");
             entityManager.flush();
@@ -267,7 +266,7 @@ class JpaCardPurchaseStore implements CardPurchaseStore {
         return new CardPurchase(entity.getId(), entity.getOwnerUserId(), entity.getCartaoId(),
                 entity.getCategoriaId(), entity.getEntidadeId(), entity.getDescricao(),
                 entity.getValorTotal(),
-                entity.getCompradaEm().atZoneSameInstant(ZoneOffset.UTC).toLocalDate(),
+                entity.getCompradaEm().atZoneSameInstant(clock.getZone()).toLocalDate(),
                 entity.getQuantidadeParcelas(), entity.getNecessidade(), entity.getStatus(),
                 installments);
     }
@@ -329,7 +328,7 @@ class JpaCardPurchaseStore implements CardPurchaseStore {
             for (int i = 0; i < credits.size() && left.signum() > 0; i++) {
                 ForecastCredit credit = credits.get(i);
                 if (!credit.createdAt().toInstant().isBefore(
-                        statement.closingDate().plusDays(1).atStartOfDay().toInstant(ZoneOffset.UTC))) {
+                        statement.closingDate().atStartOfDay(clock.getZone()).toInstant())) {
                     continue;
                 }
                 BigDecimal used = left.min(credit.available());
@@ -368,7 +367,7 @@ class JpaCardPurchaseStore implements CardPurchaseStore {
         BigDecimal amount = payments.stream()
                 .map(PagamentoFatura::getValor)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        LocalDate paidOn = payments.get(0).getPagoEm().atZoneSameInstant(ZoneOffset.UTC)
+        LocalDate paidOn = payments.get(0).getPagoEm().atZoneSameInstant(clock.getZone())
                 .toLocalDate();
         return new Payment(amount, paidOn);
     }
