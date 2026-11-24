@@ -108,18 +108,33 @@ export class FinanceStore {
   transferDateTime = new Date().toISOString().slice(0, 16);
   transferMonth = this.transferDateTime.slice(0, 7);
   cardName = '';
-  cardInstitution = '';
+  cardInstitutionChoice = '';
+  cardInstitutionName = '';
   cardClosingDay: number | null = 28;
   cardDueDay: number | null = 5;
   cardLimit: number | null = null;
   cardDefaultWalletId: number | null = null;
   editingCardId: number | null = null;
   editingCardName = '';
-  editingCardInstitution = '';
+  editingCardInstitutionChoice = '';
+  editingCardInstitutionName = '';
   editingClosingDay: number | null = null;
   editingDueDay: number | null = null;
   editingCardLimit: number | null = null;
   editingCardWalletId: number | null = null;
+
+  get cardInstitution(): string {
+    return this.cardInstitutionChoice === 'OUTRA'
+      ? this.cardInstitutionName.trim()
+      : this.cardInstitutionChoice;
+  }
+
+  get editingCardInstitution(): string {
+    return this.editingCardInstitutionChoice === 'OUTRA'
+      ? this.editingCardInstitutionName.trim()
+      : this.editingCardInstitutionChoice;
+  }
+
   purchaseCardId: number | null = null;
   purchaseCategoryId: number | null = null;
   purchaseEntityId: number | null = null;
@@ -864,7 +879,11 @@ export class FinanceStore {
   beginCardEdit(card: CreditCard): void {
     this.editingCardId = card.id;
     this.editingCardName = card.name;
-    this.editingCardInstitution = card.institutionName ?? '';
+    const institution = card.institutionName ?? '';
+    const known = this.institutions().some(candidate =>
+      candidate.code !== 'OUTRA' && candidate.name === institution);
+    this.editingCardInstitutionChoice = known ? institution : 'OUTRA';
+    this.editingCardInstitutionName = known ? '' : institution;
     this.editingClosingDay = card.closingDay;
     this.editingDueDay = card.dueDay;
     this.editingCardLimit = card.creditLimit;
@@ -886,6 +905,8 @@ export class FinanceStore {
         this.editingCardInstitution, this.editingClosingDay, this.editingDueDay,
         this.editingCardLimit, this.editingCardWalletId));
       this.editingCardId = null;
+      this.editingCardInstitutionChoice = '';
+      this.editingCardInstitutionName = '';
       this.cards.set(await firstValueFrom(this.api.cards()));
       this.notice.set('Cartão atualizado.');
     } catch (error) {
@@ -1025,7 +1046,8 @@ export class FinanceStore {
         this.cardClosingDay, this.cardDueDay, this.cardLimit, this.cardDefaultWalletId));
       created = true;
       this.cardName = '';
-      this.cardInstitution = '';
+      this.cardInstitutionChoice = '';
+      this.cardInstitutionName = '';
       this.cardLimit = null;
       this.notice.set('Cartão cadastrado.');
       this.cards.set(await firstValueFrom(this.api.cards()));

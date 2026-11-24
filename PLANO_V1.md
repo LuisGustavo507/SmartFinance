@@ -250,6 +250,15 @@ O backup não é automático no Hobby. O script `deploy/railway-backup.sh`
 precisa rodar em uma máquina com o CLI autenticado, por `cron`/systemd ou um
 runner externo; a restauração deve ser testada periodicamente.
 
+### Ajustes de experiência pós-produção
+
+**Cartão com o catálogo de instituições.** O formulário de cartão passou a
+usar o mesmo `select + OUTRA` das carteiras. A decisão de modelagem já era a
+mesma (`instituicao_id` com FK e `instituicao_nome_outro` só para `OUTRA`); a
+divergência era apenas de interface e permitia que o mesmo banco aparecesse
+com nomes diferentes. O contrato continua recebendo `institutionName`, sem
+migration. Fica para uma etapa futura trocar o contrato por `institutionId`.
+
 ### Cuidado de execução
 
 Ao mudar assinaturas de casos de uso, o plugin de compilação do Maven pode

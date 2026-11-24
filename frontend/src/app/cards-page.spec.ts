@@ -22,6 +22,10 @@ describe('CardsPage', () => {
   it('shows only the card registration and management, not statements', async () => {
     const store = TestBed.inject(FinanceStore);
     const loadCatalog = vi.spyOn(store, 'loadCardCatalog').mockResolvedValue(undefined);
+    store.institutions.set([
+      { id: 1, code: 'BANCO_TESTE', name: 'Banco Teste', active: true },
+      { id: 2, code: 'OUTRA', name: 'Outra instituição', active: true }
+    ]);
     store.cards.set([card]);
     store.cardStatements.set([{
       id: 21, ownerUserId: 1, cardId: 3, referenceMonth: '2026-12',
@@ -30,7 +34,7 @@ describe('CardsPage', () => {
       paidAmount: 0, paidOn: null, installments: []
     }]);
     store.cardName = 'Cartão Novo';
-    store.cardInstitution = 'Banco Teste';
+    store.cardInstitutionChoice = 'Banco Teste';
 
     const fixture = TestBed.createComponent(CardsPage);
     fixture.detectChanges();
@@ -38,6 +42,10 @@ describe('CardsPage', () => {
 
     expect(loadCatalog).toHaveBeenCalled();
     expect(compiled.querySelector('h1')?.textContent).toContain('Cartões');
+    const institutionSelect = compiled.querySelector('#card-institution') as HTMLSelectElement;
+    expect(institutionSelect.tagName).toBe('SELECT');
+    expect([...institutionSelect.options].map(option => option.value)).toContain('Banco Teste');
+    expect(compiled.querySelector('#card-institution-name')).toBeNull();
     expect(compiled.textContent).toContain('Cartão Gold');
     expect(compiled.textContent).not.toContain('Fatura Cartão Gold');
     expect(compiled.querySelector('#statement-month')).toBeNull();
@@ -53,7 +61,26 @@ describe('CardsPage', () => {
     await fixture.whenStable();
     fixture.detectChanges();
     expect((compiled.querySelector('#edit-card-name') as HTMLInputElement).value).toBe('Cartão Gold');
+    expect((compiled.querySelector('#edit-card-institution') as HTMLSelectElement).value)
+      .toBe('Banco Teste');
+    expect(compiled.querySelector('#edit-card-institution-name')).toBeNull();
     expect(compiled.textContent).toContain('Salvar cartão');
+  });
+
+  it('asks for the institution name only when the card uses OUTRA', () => {
+    const store = TestBed.inject(FinanceStore);
+    vi.spyOn(store, 'loadCardCatalog').mockResolvedValue(undefined);
+    store.institutions.set([
+      { id: 1, code: 'BANCO_TESTE', name: 'Banco Teste', active: true },
+      { id: 2, code: 'OUTRA', name: 'Outra instituição', active: true }
+    ]);
+    store.cardInstitutionChoice = 'OUTRA';
+    store.cardInstitutionName = 'Banco Novo';
+    const fixture = TestBed.createComponent(CardsPage);
+    fixture.detectChanges();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('#card-institution-name')).not.toBeNull();
+    expect(store.cardInstitution).toBe('Banco Novo');
   });
 
   it('shows an empty card catalog and a retry when loading fails', () => {

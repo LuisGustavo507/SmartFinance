@@ -224,13 +224,15 @@ Estorno de transferência ainda não existe.
 
 ### Cartões de crédito
 
-O cartão registra **nome único por usuário** (`409` quando repete), instituição
-em texto livre, dia de fechamento e dia de vencimento **entre 1 e 28**, limite
-opcional apenas informativo e conta de pagamento padrão opcional (precisa ser
-uma carteira do próprio usuário; alheia ou inexistente → `404`). O catálogo de
-instituições ainda tem somente a entrada `OUTRA`, então a instituição digitada
-pelo usuário é gravada como nome próprio do cartão. É possível editar nome,
-instituição, limite e conta padrão, bem como ativar/desativar. Os dias de
+O cartão registra **nome único por usuário** (`409` quando repete), instituição,
+dia de fechamento e dia de vencimento **entre 1 e 28**, limite opcional apenas
+informativo e conta de pagamento padrão opcional (precisa ser uma carteira do
+próprio usuário; alheia ou inexistente → `404`). A instituição segue o mesmo
+padrão das carteiras: a tela oferece o catálogo global em um `select` e a opção
+`OUTRA` com o nome informado; o nome conhecido vira FK e o desconhecido cai na
+entrada `OUTRA` com `instituicao_nome_outro`. O contrato continua recebendo
+`institutionName`. É possível editar nome, instituição, limite e conta padrão,
+bem como ativar/desativar. Os dias de
 fechamento e vencimento só podem mudar **antes de qualquer compra ou fatura**
 (`409` após isso); o cartão inativo não recebe novas compras, mas mantém
 faturas, estornos e pagamentos disponíveis.
@@ -312,7 +314,7 @@ disponível para faturas futuras. Fatura de líquido zero passa a `PAGA` sem
 pagamento. Uma fatura já fechada nunca é reaberta nem recalculada por estorno.
 
 Ainda não existem devolução parcial, múltiplos pagamentos parciais
-e o catálogo de instituições além da entrada `OUTRA`. Uma compra cujo ciclo
+e fluxo de solicitação de inclusão no catálogo de instituições. Uma compra cujo ciclo
 já terminou é recusada (`409`) em vez de
 entrar em uma fatura encerrada.
 

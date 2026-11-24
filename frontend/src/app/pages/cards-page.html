@@ -13,8 +13,22 @@
       <input pInputText id="card-name" name="card-name" [(ngModel)]="store.cardName"
              required maxlength="120" autocomplete="off" />
       <label for="card-institution">Instituição</label>
-      <input pInputText id="card-institution" name="card-institution"
-             [(ngModel)]="store.cardInstitution" required maxlength="120" autocomplete="off" />
+      <select id="card-institution" name="card-institution"
+              [(ngModel)]="store.cardInstitutionChoice" required>
+        <option value="">Selecione</option>
+        @for (institution of store.institutions(); track institution.id) {
+          @if (institution.code !== 'OUTRA') {
+            <option [value]="institution.name">{{ institution.name }}</option>
+          }
+        }
+        <option value="OUTRA">Outra instituição (informar o nome)</option>
+      </select>
+      @if (store.cardInstitutionChoice === 'OUTRA') {
+        <label for="card-institution-name">Nome da instituição</label>
+        <input pInputText id="card-institution-name" name="card-institution-name"
+               [(ngModel)]="store.cardInstitutionName" maxlength="120" required
+               autocomplete="off" />
+      }
       <label for="card-closing-day">Dia de fechamento</label>
       <p-inputnumber inputId="card-closing-day" name="card-closing-day"
                      [(ngModel)]="store.cardClosingDay" [min]="1" [max]="28"
@@ -69,8 +83,22 @@
             <input pInputText id="edit-card-name" name="edit-card-name"
                    [(ngModel)]="store.editingCardName" required maxlength="120" />
             <label for="edit-card-institution">Instituição</label>
-            <input pInputText id="edit-card-institution" name="edit-card-institution"
-                   [(ngModel)]="store.editingCardInstitution" required maxlength="120" />
+            <select id="edit-card-institution" name="edit-card-institution"
+                    [(ngModel)]="store.editingCardInstitutionChoice" required>
+              <option value="">Selecione</option>
+              @for (institution of store.institutions(); track institution.id) {
+                @if (institution.code !== 'OUTRA') {
+                  <option [value]="institution.name">{{ institution.name }}</option>
+                }
+              }
+              <option value="OUTRA">Outra instituição (informar o nome)</option>
+            </select>
+            @if (store.editingCardInstitutionChoice === 'OUTRA') {
+              <label for="edit-card-institution-name">Nome da instituição</label>
+              <input pInputText id="edit-card-institution-name"
+                     name="edit-card-institution-name"
+                     [(ngModel)]="store.editingCardInstitutionName" maxlength="120" required />
+            }
             <label for="edit-card-closing">Dia de fechamento</label>
             <p-inputnumber inputId="edit-card-closing" name="edit-card-closing"
                            [(ngModel)]="store.editingClosingDay" [min]="1" [max]="28"

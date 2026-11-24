@@ -608,9 +608,11 @@ describe('FinanceStore', () => {
   });
 
   it('registers a credit card and keeps it in the list', async () => {
-    await authenticate();
+    await authenticate({
+      institutions: [{ id: 1, code: 'BANCO_TESTE', name: 'Banco Teste', active: true }]
+    });
     store.cardName = 'Cartão Gold';
-    store.cardInstitution = 'Banco Teste';
+    store.cardInstitutionChoice = 'Banco Teste';
     store.cardClosingDay = 28;
     store.cardDueDay = 5;
     store.cardLimit = 5000;
@@ -636,6 +638,48 @@ describe('FinanceStore', () => {
     expect(store.cardLabel(3)).toBe('Cartão Gold');
     expect(store.cardLabel(9)).toBe('Cartão 9');
     expect(store.notice()).toContain('Cartão cadastrado');
+  });
+
+  it('sends the typed name when the card institution is OUTRA', async () => {
+    await authenticate({
+      institutions: [{ id: 2, code: 'OUTRA', name: 'Outra instituição', active: true }]
+    });
+    store.cardName = 'Cartão Novo';
+    store.cardInstitutionChoice = 'OUTRA';
+    store.cardInstitutionName = '  Banco Novo  ';
+    store.cardClosingDay = 10;
+    store.cardDueDay = 17;
+
+    const creation = store.createCard();
+    http.expectOne('/api/auth/csrf').flush(null);
+    await Promise.resolve();
+    const request = http.expectOne('/api/cards');
+    expect(request.request.body.institutionName).toBe('Banco Novo');
+    request.flush({ id: 4, ownerUserId: 1, name: 'Cartão Novo',
+      institutionName: 'Banco Novo', closingDay: 10, dueDay: 17,
+      creditLimit: null, defaultPaymentWalletId: null, active: true });
+    await Promise.resolve();
+    http.expectOne('/api/cards').flush([]);
+    await creation;
+    expect(store.cardInstitutionChoice).toBe('');
+    expect(store.cardInstitutionName).toBe('');
+  });
+
+  it('maps known and unknown card institutions to the edit select', () => {
+    store.institutions.set([
+      { id: 1, code: 'BANCO_TESTE', name: 'Banco Teste', active: true },
+      { id: 2, code: 'OUTRA', name: 'Outra instituição', active: true }
+    ]);
+    const card = { id: 3, ownerUserId: 1, name: 'Cartão Gold',
+      institutionName: 'Banco Teste', closingDay: 28, dueDay: 5,
+      creditLimit: null, defaultPaymentWalletId: null, active: true };
+    store.beginCardEdit(card);
+    expect(store.editingCardInstitutionChoice).toBe('Banco Teste');
+    expect(store.editingCardInstitutionName).toBe('');
+    store.beginCardEdit({ ...card, institutionName: 'Banco Raro' });
+    expect(store.editingCardInstitutionChoice).toBe('OUTRA');
+    expect(store.editingCardInstitutionName).toBe('Banco Raro');
+    expect(store.editingCardInstitution).toBe('Banco Raro');
   });
 
   it('loads the card catalog without requesting statements on the cards page', async () => {
@@ -975,7 +1019,10 @@ describe('FinanceStore', () => {
     const card = { id: 3, ownerUserId: 1, name: 'Cartão Gold',
       institutionName: 'Banco Teste', closingDay: 28, dueDay: 5,
       creditLimit: null, defaultPaymentWalletId: null, active: true };
-    await authenticate({ cards: [card] });
+    await authenticate({
+      cards: [card],
+      institutions: [{ id: 1, code: 'BANCO_TESTE', name: 'Banco Teste', active: true }]
+    });
     store.beginCardEdit(card);
     store.editingCardName = 'Cartão Platinum';
     const editing = store.updateCard();
