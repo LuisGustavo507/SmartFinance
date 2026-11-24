@@ -53,6 +53,11 @@ describe('PayablesPage', () => {
     expect(text).toContain('Conta de luz');
     expect(text).toContain('Atrasada');
     expect(text).toContain('Não registre a mesma despesa também em Lançamentos');
+    const page = fixture.nativeElement as HTMLElement;
+    const filter = page.querySelector('.filter') as HTMLElement;
+    const list = page.querySelector('.payable-list') as HTMLElement;
+    expect(list.tabIndex).toBe(0);
+    expect(filter.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('automatically loads a new month and ignores an older response', async () => {

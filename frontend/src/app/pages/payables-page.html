@@ -80,7 +80,8 @@
       } @else if (!payables().length) {
         <p class="empty">Nenhuma conta neste mês nem atrasada. Cadastre uma acima para começar.</p>
       } @else {
-        <ul class="simple-list">
+        <ul class="simple-list scroll-area payable-list" tabindex="0"
+            aria-label="Vencimentos e contas atrasadas">
           @for (payable of payables(); track payable.id) {
             <li class="payable-row">
               <span class="list-main">
