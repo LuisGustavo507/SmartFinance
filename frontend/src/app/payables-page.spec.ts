@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
-import { of, throwError } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { Api, Payable } from './api';
 import { FinanceStore } from './finance-store';
@@ -53,6 +53,30 @@ describe('PayablesPage', () => {
     expect(text).toContain('Conta de luz');
     expect(text).toContain('Atrasada');
     expect(text).toContain('Não registre a mesma despesa também em Lançamentos');
+  });
+
+  it('automatically loads a new month and ignores an older response', async () => {
+    const first = new Subject<Payable[]>();
+    const second = new Subject<Payable[]>();
+    api['payables'].mockReturnValueOnce(first).mockReturnValueOnce(second);
+    const fixture = TestBed.createComponent(PayablesPage);
+    const page = fixture.componentInstance;
+    page.month = '2026-12';
+    fixture.detectChanges();
+
+    page.changeMonth('2027-01');
+    expect(api['payables']).toHaveBeenNthCalledWith(1, '2026-12');
+    expect(api['payables']).toHaveBeenNthCalledWith(2, '2027-01');
+    second.next([{ ...payable, id: 4, description: 'Janeiro' }]);
+    second.complete();
+    await fixture.whenStable();
+    first.next([payable]);
+    first.complete();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(page.payables()[0].description).toBe('Janeiro');
+    expect(page.loading()).toBe(false);
+    expect((fixture.nativeElement as HTMLElement).textContent).toContain('Janeiro');
   });
 
   it('preserves input and reports an error if creating a payable fails', async () => {

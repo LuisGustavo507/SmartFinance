@@ -10,10 +10,11 @@ import { Entry } from '../api';
 import { categoryRows, money, monthLabel, necessityLabel, shortDate } from '../format';
 import { DateField } from '../date-field';
 import { MoneyField } from '../money-field';
+import { MonthNavigation } from '../month-navigation';
 
 @Component({
   selector: 'app-entries-page',
-  imports: [FormsModule, RouterLink, ButtonModule, CardModule, InputNumberModule, InputTextModule, DateField, MoneyField],
+  imports: [FormsModule, RouterLink, ButtonModule, CardModule, InputNumberModule, InputTextModule, DateField, MoneyField, MonthNavigation],
   templateUrl: './entries-page.html',
   styleUrl: './entries-page.css'
 })
@@ -26,6 +27,11 @@ export class EntriesPage {
   readonly categoryRows = categoryRows;
   readonly numberIsInteger = Number.isInteger;
   attempted = false;
+
+  changeMonth(month: string): void {
+    this.store.selectedMonth = month;
+    void this.store.loadEntries();
+  }
 
   occurrencesLabel(): string {
     const count = this.store.selectedSeries().length;

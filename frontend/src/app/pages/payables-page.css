@@ -7,6 +7,8 @@
 .payables-main { display: grid; gap: 1.25rem; min-width: 0; }
 .filter, .actions { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
 .filter { margin-bottom: .5rem; }
+.filter label { flex: 1 0 100%; }
+.filter app-month-navigation { flex: 1 1 14rem; min-width: min(100%, 14rem); }
 .payable-row { flex-wrap: wrap; }
 .payable-row .list-main { display: grid; gap: .2rem; }
 .payable-row .badge { width: fit-content; }

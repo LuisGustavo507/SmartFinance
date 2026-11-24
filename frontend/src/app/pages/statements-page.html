@@ -20,8 +20,8 @@
   </div>
   <div>
     <label for="statement-month">Mês de referência</label>
-    <app-date-field inputId="statement-month" name="statement-month" [month]="true"
-                    [(ngModel)]="store.statementMonth" (ngModelChange)="loadStatements()" />
+    <app-month-navigation inputId="statement-month" [month]="store.statementMonth"
+                          (monthChange)="changeMonth($event)" />
   </div>
 </div>
 

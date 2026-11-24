@@ -276,8 +276,8 @@
     <div class="filters">
       <div>
         <label for="entry-month">Mês de referência</label>
-        <app-date-field inputId="entry-month" name="entry-month" [month]="true"
-                        [(ngModel)]="store.selectedMonth" (ngModelChange)="store.loadEntries()" />
+        <app-month-navigation inputId="entry-month" [month]="store.selectedMonth"
+                              (monthChange)="changeMonth($event)" />
       </div>
       <div>
         <label for="entity-filter">Entidade</label>

@@ -43,8 +43,8 @@
   <div class="stack">
     <div>
       <label for="transfer-month">Mês (UTC)</label>
-       <app-date-field inputId="transfer-month" name="transfer-month" [month]="true"
-                       [(ngModel)]="store.transferMonth" (ngModelChange)="store.loadTransfers()" />
+       <app-month-navigation inputId="transfer-month" [month]="store.transferMonth"
+                             (monthChange)="changeMonth($event)" />
     </div>
     <p-card [header]="'Transferências de ' + monthLabel(store.transferMonth)">
       @if (store.transfersLoading()) {

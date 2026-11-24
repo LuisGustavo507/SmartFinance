@@ -7,10 +7,11 @@ import { CardInstallment, CardStatement, ReversalCredit } from '../api';
 import { FinanceStore } from '../finance-store';
 import { money, monthLabel, shortDate } from '../format';
 import { DateField } from '../date-field';
+import { MonthNavigation } from '../month-navigation';
 
 @Component({
   selector: 'app-statements-page',
-  imports: [FormsModule, RouterLink, ButtonModule, CardModule, DateField],
+  imports: [FormsModule, RouterLink, ButtonModule, CardModule, DateField, MonthNavigation],
   templateUrl: './statements-page.html',
   styleUrl: './statements-page.css'
 })
@@ -46,6 +47,11 @@ export class StatementsPage implements OnInit {
   cardChanged(): void {
     this.store.paymentStatementId = null;
     this.store.editingPurchaseEntityId = null;
+  }
+
+  changeMonth(month: string): void {
+    this.store.statementMonth = month;
+    this.loadStatements();
   }
 
   loadStatements(): void {
