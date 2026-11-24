@@ -363,6 +363,7 @@ export class FinanceStore {
       this.counterparties.update(entities =>
         entities.map(entity => entity.id === id ? updated : entity));
       if (!active && this.entryEntityId === id) this.entryEntityId = null;
+      this.notice.set(active ? 'Entidade reativada.' : 'Entidade desativada.');
     } catch (error) {
       this.error.set(this.message(error, 'Não foi possível alterar a entidade.'));
     } finally {
@@ -389,6 +390,7 @@ export class FinanceStore {
         entries.map(entry => entry.entityId === id ? { ...entry, entityName: updated.name } : entry));
       this.editingEntityId = null;
       this.editingEntityName = '';
+      this.notice.set('Entidade atualizada.');
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 409) {
         this.error.set('Já existe uma entidade com esse nome.');
@@ -419,6 +421,7 @@ export class FinanceStore {
         await this.loadEntries();
       }
       if (this.editingEntityId === id) this.editingEntityId = null;
+      this.notice.set('Entidade excluída.');
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 409) {
         this.error.set('Entidade vinculada a lançamentos não pode ser excluída.');

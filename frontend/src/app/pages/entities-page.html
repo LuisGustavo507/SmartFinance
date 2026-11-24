@@ -28,27 +28,10 @@
             <li>
               <span class="entity-name">{{ entity.name }}</span>
               <span class="badge" [class.inactive]="!entity.active">{{ entity.active ? 'Ativa' : 'Inativa' }}</span>
-              @if (store.editingEntityId === entity.id) {
-                <form (ngSubmit)="store.renameCounterparty()" class="inline-form">
-                  <label for="entity-rename">Nome da entidade</label>
-                  <input pInputText id="entity-rename" name="entity-rename"
-                         [(ngModel)]="store.editingEntityName" required maxlength="120" />
-                  <div class="form-actions">
-                    <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                              (onClick)="store.editingEntityId = null" />
-                    <p-button type="submit" label="Salvar" [loading]="store.busy()"
-                              [disabled]="!store.editingEntityName.trim()" />
-                  </div>
-                </form>
-              } @else {
-                <p-button label="Renomear" severity="secondary" [text]="true"
-                          [disabled]="store.busy()" (onClick)="store.startRenameEntity(entity)" />
-              }
-              <p-button [label]="entity.active ? 'Desativar' : 'Reativar'"
-                        severity="secondary" [text]="true" [disabled]="store.busy()"
-                        (onClick)="store.setCounterpartyActive(entity.id, !entity.active)" />
-              <p-button label="Excluir" severity="danger" [text]="true"
-                        [disabled]="store.busy()" (onClick)="store.deleteCounterparty(entity.id)" />
+              <p-button icon="pi pi-pencil" [ariaLabel]="'Editar entidade ' + entity.name"
+                        [title]="'Editar entidade ' + entity.name" severity="secondary"
+                        [text]="true" [disabled]="store.busy()"
+                        (onClick)="store.startRenameEntity(entity)" />
             </li>
           }
         </ul>
@@ -56,3 +39,29 @@
     }
   </section>
 </div>
+
+<app-maintenance-dialog #editor dialogTitle="Gerenciar entidade"
+                        [visible]="store.editingEntityId !== null"
+                        [hasUnsavedChanges]="entityDirty" [busy]="store.busy()"
+                        (closeRequested)="closeEditor()">
+  @if (editedEntity(); as entity) {
+    <form (ngSubmit)="store.renameCounterparty()" class="form">
+      <label for="entity-edit-name">Nome da entidade</label>
+      <input pInputText id="entity-edit-name" name="entity-edit-name"
+             [(ngModel)]="store.editingEntityName" required maxlength="120" />
+      <div class="form-actions">
+        <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                  (onClick)="editor.requestClose()" />
+        <p-button type="submit" label="Salvar" [loading]="store.busy()"
+                  [disabled]="!store.editingEntityName.trim()" />
+      </div>
+    </form>
+    <div class="record-operations">
+      <p-button [label]="entity.active ? 'Desativar' : 'Reativar'"
+                severity="secondary" [outlined]="true" [disabled]="store.busy()"
+                (onClick)="store.setCounterpartyActive(entity.id, !entity.active)" />
+      <p-button label="Excluir" severity="danger" [outlined]="true"
+                [disabled]="store.busy()" (onClick)="store.deleteCounterparty(entity.id)" />
+    </div>
+  }
+</app-maintenance-dialog>
