@@ -147,6 +147,15 @@ input.p-inputtext { width: 100%; padding: .62rem .7rem; border-radius: .5rem; }
 }
 .inline-form label { font-weight: 600; font-size: .92rem; }
 .inline-form input, .inline-form select { width: 100%; min-width: 0; }
+.record-operations {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--sf-border-soft);
+}
 
 /*
  * Long lists scroll inside a bounded area instead of stretching the page.
