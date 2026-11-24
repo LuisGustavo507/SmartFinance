@@ -21,7 +21,7 @@
       <p-card><p class="empty">Nenhuma entidade cadastrada.</p></p-card>
     } @else {
       <p-card>
-        <ul class="entity-list">
+        <ul class="entity-list scroll-area" tabindex="0">
           @for (entity of store.counterparties(); track entity.id) {
             <li>
               <span class="entity-name">{{ entity.name }}</span>

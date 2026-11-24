@@ -259,6 +259,10 @@ divergência era apenas de interface e permitia que o mesmo banco aparecesse
 com nomes diferentes. O contrato continua recebendo `institutionName`, sem
 migration. Fica para uma etapa futura trocar o contrato por `institutionId`.
 
+**Listas longas com rolagem interna.** As listas de categorias e entidades
+usam a classe global `.scroll-area`, com altura limitada e `tabindex="0"` para
+rolagem por teclado, em vez de esticar a página indefinidamente.
+
 ### Cuidado de execução
 
 Ao mudar assinaturas de casos de uso, o plugin de compilação do Maven pode
