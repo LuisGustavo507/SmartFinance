@@ -1,18 +1,23 @@
-import { Component, effect, inject, signal } from '@angular/core';
+import { Component, effect, inject, OnDestroy, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { ButtonModule } from 'primeng/button';
+import { ConfirmationService } from 'primeng/api';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { ActionConfirmation } from './action-confirmation';
 import { FinanceStore } from './finance-store';
 
 @Component({
   selector: 'app-shell',
-  imports: [ButtonModule, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [ButtonModule, ConfirmDialogModule, RouterLink, RouterLinkActive, RouterOutlet],
+  providers: [{ provide: ConfirmationService, useExisting: ActionConfirmation }],
   templateUrl: './shell.html',
   styleUrl: './shell.css'
 })
-export class Shell {
+export class Shell implements OnDestroy {
   readonly store = inject(FinanceStore);
+  readonly confirmation = inject(ActionConfirmation);
   private readonly router = inject(Router);
   readonly menuOpen = signal(false);
 
@@ -21,6 +26,7 @@ export class Shell {
       filter(event => event instanceof NavigationEnd),
       takeUntilDestroyed()
     ).subscribe(() => {
+      this.confirmation.cancel();
       this.store.notice.set('');
       this.store.error.set('');
     });
@@ -30,6 +36,10 @@ export class Shell {
         void this.router.navigateByUrl('/login');
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.confirmation.cancel();
   }
 
   toggleMenu(): void {

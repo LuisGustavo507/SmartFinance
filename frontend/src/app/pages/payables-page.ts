@@ -10,6 +10,7 @@ import { FinanceStore } from '../finance-store';
 import { money, monthLabel, shortDate } from '../format';
 import { DateField } from '../date-field';
 import { MoneyField } from '../money-field';
+import { ActionConfirmation } from '../action-confirmation';
 
 @Component({
   selector: 'app-payables-page',
@@ -20,6 +21,7 @@ import { MoneyField } from '../money-field';
 export class PayablesPage implements OnInit {
   readonly store = inject(FinanceStore);
   private readonly api = inject(Api);
+  private readonly confirmation = inject(ActionConfirmation);
   readonly money = money;
   readonly monthLabel = monthLabel;
   readonly shortDate = shortDate;
@@ -144,7 +146,11 @@ export class PayablesPage implements OnInit {
   }
 
   async cancel(payable: Payable): Promise<void> {
-    if (this.busy() || !confirm(`Cancelar a conta "${payable.description || payable.categoryName}"?`)) return;
+    if (this.busy()) return;
+    if (!await this.confirmation.ask('Cancelar conta',
+      `Cancelar a conta “${payable.description || payable.categoryName}”?`,
+      'Cancelar conta')) return;
+    if (this.busy()) return;
     this.busy.set(true);
     this.error.set('');
     try {
@@ -165,7 +171,10 @@ export class PayablesPage implements OnInit {
       this.error.set('Selecione a conta pagadora e informe a data efetiva do pagamento.');
       return;
     }
-    if (!confirm(`Confirmar pagamento integral de ${money(payable.amount)}? O saldo da conta será reduzido.`)) return;
+    if (!await this.confirmation.ask('Confirmar pagamento',
+      `Confirmar pagamento integral de ${money(payable.amount)}? O saldo da conta será reduzido.`,
+      'Confirmar pagamento', false)) return;
+    if (this.busy() || this.selected()?.id !== payable.id) return;
     this.busy.set(true);
     this.error.set('');
     try {
@@ -186,7 +195,10 @@ export class PayablesPage implements OnInit {
       this.error.set('Informe o motivo da correção do pagamento.');
       return;
     }
-    if (!confirm('Estornar este registro de pagamento? A conta voltará a ficar pendente e o saldo estimado será corrigido.')) return;
+    if (!await this.confirmation.ask('Estornar pagamento',
+      'Estornar este registro de pagamento? A conta voltará a ficar pendente e o saldo estimado será corrigido.',
+      'Estornar pagamento')) return;
+    if (this.busy() || this.selected()?.id !== payable.id) return;
     this.busy.set(true);
     this.error.set('');
     try {

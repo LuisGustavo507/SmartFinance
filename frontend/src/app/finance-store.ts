@@ -1,11 +1,13 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
+import { ActionConfirmation } from './action-confirmation';
 import { Api, CardInstallment, CardPurchase, CardStatement, Category, CategoryKind, Counterparty, CreditCard, Entry, EntityPeriodReport, Institution, MonthlyPoint, MonthlySummary, Necessity, Profile, ReversalCredit, Transfer, Wallet, WalletType } from './api';
 
 @Injectable({ providedIn: 'root' })
 export class FinanceStore {
   private readonly api = inject(Api);
+  private readonly confirmation = inject(ActionConfirmation);
   readonly profile = signal<Profile | null>(null);
   readonly wallets = signal<Wallet[]>([]);
   readonly institutions = signal<Institution[]>([]);
@@ -293,7 +295,10 @@ export class FinanceStore {
   }
 
   async deleteCategory(category: Category): Promise<void> {
-    if (!window.confirm(`Excluir a categoria “${category.name}” definitivamente? Só é possível se não houver lançamentos nem compras vinculados.`)) return;
+    if (this.busy()) return;
+    if (!await this.confirmation.ask('Excluir categoria',
+      `Excluir a categoria “${category.name}” definitivamente? Só é possível se não houver lançamentos nem compras vinculados.`,
+      'Excluir categoria')) return;
     if (this.busy()) return;
     this.error.set('');
     this.busy.set(true);
@@ -396,7 +401,12 @@ export class FinanceStore {
   }
 
   async deleteCounterparty(id: number): Promise<void> {
-    if (!window.confirm('Excluir esta entidade sem vínculos? Esta ação não pode ser desfeita.')) return;
+    if (this.busy()) return;
+    const entity = this.counterparties().find(item => item.id === id);
+    if (!await this.confirmation.ask('Excluir entidade',
+      `Excluir a entidade “${entity?.name ?? 'selecionada'}” sem vínculos? Esta ação não pode ser desfeita.`,
+      'Excluir entidade')) return;
+    if (this.busy()) return;
     this.error.set('');
     this.busy.set(true);
     try {
@@ -1008,9 +1018,11 @@ export class FinanceStore {
   }
 
   async reverseCardPurchase(purchaseId: number): Promise<void> {
-    if (!window.confirm('Estornar a compra inteira? Parcelas de faturas abertas serão canceladas.')) {
-      return;
-    }
+    if (this.busy()) return;
+    if (!await this.confirmation.ask('Estornar compra',
+      'Estornar a compra inteira? Parcelas de faturas abertas serão canceladas.',
+      'Estornar compra')) return;
+    if (this.busy()) return;
     this.error.set('');
     this.busy.set(true);
     try {

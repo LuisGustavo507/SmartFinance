@@ -4,6 +4,7 @@ import { provideHttpClientTesting, HttpTestingController } from '@angular/common
 import { FinanceStore } from './finance-store';
 import { Entry } from './api';
 import { vi } from 'vitest';
+import { ActionConfirmation } from './action-confirmation';
 
 const summary = (month: string, realizedExpenses = 0, plannedExpenses = 0) => ({
   month, realizedIncome: 0, realizedExpenses,
@@ -283,13 +284,14 @@ describe('FinanceStore', () => {
     await authenticate({
       entities: [{ id: 5, ownerUserId: 1, name: 'Sem vínculos', active: true }]
     });
-    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false);
+    const confirmation = vi.spyOn(TestBed.inject(ActionConfirmation), 'ask')
+      .mockResolvedValueOnce(false).mockResolvedValueOnce(true);
     try {
       await store.deleteCounterparty(5);
       expect(store.counterparties()).toHaveLength(1);
       http.expectNone('/api/entities/5');
-      confirm.mockReturnValue(true);
       const deletion = store.deleteCounterparty(5);
+      await Promise.resolve();
       http.expectOne('/api/auth/csrf').flush(null);
       await Promise.resolve();
       const request = http.expectOne('/api/entities/5');
@@ -298,7 +300,7 @@ describe('FinanceStore', () => {
       await deletion;
       expect(store.counterparties()).toHaveLength(0);
     } finally {
-      confirm.mockRestore();
+      confirmation.mockRestore();
     }
   });
 
@@ -987,9 +989,11 @@ describe('FinanceStore', () => {
   it('reverses a purchase and reloads credits and monthly totals', async () => {
     await authenticate();
     store.statementMonth = '2026-12';
-    const confirmation = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const confirmation = vi.spyOn(TestBed.inject(ActionConfirmation), 'ask')
+      .mockResolvedValue(true);
     try {
       const reversal = store.reverseCardPurchase(7);
+      await Promise.resolve();
       http.expectOne('/api/auth/csrf').flush(null);
       await Promise.resolve();
       const request = http.expectOne('/api/card-purchases/7/reversal');

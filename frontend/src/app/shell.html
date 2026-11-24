@@ -1,4 +1,8 @@
 <a class="skip-link" href="#page-content">Pular para o conteúdo</a>
+<p-confirmdialog key="finance-actions" [draggable]="false"
+                 [style]="{ width: 'min(28rem, calc(100vw - 2rem))' }"
+                 closeAriaLabel="Fechar confirmação"
+                 (onHide)="confirmation.restoreFocus()" />
 <div class="shell">
   @if (menuOpen()) {
     <button type="button" class="scrim" aria-label="Fechar menu" (click)="closeMenu()"></button>

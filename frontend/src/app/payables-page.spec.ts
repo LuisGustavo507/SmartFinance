@@ -6,6 +6,7 @@ import { vi } from 'vitest';
 import { Api, Payable } from './api';
 import { FinanceStore } from './finance-store';
 import { PayablesPage } from './pages/payables-page';
+import { ActionConfirmation } from './action-confirmation';
 
 const payable: Payable = {
   id: 3, ownerUserId: 1, categoryId: 2, categoryName: 'Energia',
@@ -92,7 +93,7 @@ describe('PayablesPage', () => {
     await page.select(payable);
     page.walletId = 5;
     page.paidOn = '2026-11-20';
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    const confirm = vi.spyOn(TestBed.inject(ActionConfirmation), 'ask').mockResolvedValue(true);
     fixture.detectChanges();
     const button = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
       .find(element => element.textContent?.includes('Registrar pagamento integral'))!;
@@ -101,7 +102,26 @@ describe('PayablesPage', () => {
     fixture.detectChanges();
     expect(api['payPayable']).toHaveBeenCalledWith(3, 5, '2026-11-20');
     expect((fixture.nativeElement as HTMLElement).textContent).toContain('Pagamento integral registrado');
-    vi.unstubAllGlobals();
+    expect(confirm).toHaveBeenCalledWith('Confirmar pagamento',
+      expect.stringMatching(/R\$\s+100,00/), 'Confirmar pagamento', false);
+  });
+
+  it('keeps the payment form and does not debit when confirmation is declined', async () => {
+    const fixture = TestBed.createComponent(PayablesPage);
+    const page = fixture.componentInstance;
+    fixture.detectChanges();
+    await fixture.whenStable();
+    await page.select(payable);
+    page.walletId = 5;
+    page.paidOn = '2026-11-20';
+    vi.spyOn(TestBed.inject(ActionConfirmation), 'ask').mockResolvedValue(false);
+
+    await page.pay();
+
+    expect(api['payPayable']).not.toHaveBeenCalled();
+    expect(api['csrf']).not.toHaveBeenCalled();
+    expect(page.walletId).toBe(5);
+    expect(page.paidOn).toBe('2026-11-20');
   });
 
   it('does not suggest repeating a successful payment when refreshing the list fails', async () => {
@@ -113,7 +133,7 @@ describe('PayablesPage', () => {
     page.walletId = 5;
     page.paidOn = '2026-11-20';
     api['payables'].mockReturnValueOnce(throwError(() => new HttpErrorResponse({ status: 503 })));
-    vi.stubGlobal('confirm', vi.fn(() => true));
+    vi.spyOn(TestBed.inject(ActionConfirmation), 'ask').mockResolvedValue(true);
     await page.pay();
     fixture.detectChanges();
     expect(api['payPayable']).toHaveBeenCalledTimes(1);
@@ -121,6 +141,5 @@ describe('PayablesPage', () => {
     expect(page.error()).toContain('operação foi concluída');
     expect(page.selected()).toBeNull();
     expect(page.loadFailed()).toBe(true);
-    vi.unstubAllGlobals();
   });
 });
