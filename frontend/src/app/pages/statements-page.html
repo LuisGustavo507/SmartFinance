@@ -85,10 +85,10 @@
                         @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
                       }
                     </select>
-                    <div class="edit-actions">
-                      <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
+                    <div class="form-actions">
                       <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
                                 (onClick)="store.editingPurchaseEntityId = null" />
+                      <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
                     </div>
                   </form>
                 }
@@ -146,10 +146,10 @@
                         @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
                       }
                     </select>
-                    <div class="edit-actions">
-                      <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
+                    <div class="form-actions">
                       <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
                                 (onClick)="store.editingPurchaseEntityId = null" />
+                      <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
                     </div>
                   </form>
                 }
@@ -176,10 +176,12 @@
           <label for="payment-date">Data do pagamento</label>
           <app-date-field inputId="payment-date" name="payment-date" [time]="true"
                           [(ngModel)]="store.paymentDateTime" required />
-          <p-button type="submit" label="Confirmar pagamento" [loading]="store.busy()"
-                    [disabled]="store.paymentWalletId === null || !store.paymentDateTime" />
-          <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                    (onClick)="store.paymentStatementId = null" />
+          <div class="form-actions">
+            <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                      (onClick)="store.paymentStatementId = null" />
+            <p-button type="submit" label="Confirmar pagamento" [loading]="store.busy()"
+                      [disabled]="store.paymentWalletId === null || !store.paymentDateTime" />
+          </div>
         </form>
       } @else {
         <p-button label="Pagar fatura" severity="secondary" [outlined]="true"

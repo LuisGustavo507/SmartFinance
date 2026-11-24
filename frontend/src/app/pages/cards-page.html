@@ -45,8 +45,10 @@
           <option [ngValue]="wallet.id">{{ wallet.name }}</option>
         }
       </select>
-      <p-button type="submit" label="Cadastrar cartão" [loading]="store.busy()"
-                [disabled]="!store.cardName.trim() || !store.cardInstitution.trim()" />
+      <div class="form-actions">
+        <p-button type="submit" label="Cadastrar cartão" [loading]="store.busy()"
+                  [disabled]="!store.cardName.trim() || !store.cardInstitution.trim()" />
+      </div>
     </form>
   </p-card>
   <div class="stack">
@@ -119,9 +121,11 @@
                 <option [ngValue]="wallet.id">{{ wallet.name }}</option>
               }
             </select>
-            <p-button type="submit" label="Salvar cartão" [loading]="store.busy()" />
-            <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
-                      (onClick)="store.editingCardId = null" />
+            <div class="form-actions">
+              <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
+                        (onClick)="store.editingCardId = null" />
+              <p-button type="submit" label="Salvar cartão" [loading]="store.busy()" />
+            </div>
           </form>
         }
       }

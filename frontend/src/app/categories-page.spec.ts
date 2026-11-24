@@ -47,4 +47,28 @@ describe('CategoriesPage', () => {
     expect(list!.tabIndex).toBe(0);
     expect(page.textContent).toContain('Categoria 40');
   });
+
+  it('keeps edit labels and actions grouped in a full-width form', () => {
+    TestBed.configureTestingModule({
+      imports: [CategoriesPage],
+      providers: [provideHttpClient(), provideHttpClientTesting()]
+    });
+    const fixture = TestBed.createComponent(CategoriesPage);
+    const store = TestBed.inject(FinanceStore);
+    const category = { id: 1, ownerUserId: 1, name: 'Mercado',
+      kind: 'DESPESA' as const, active: true };
+    store.categories.set([category]);
+    store.startCategoryEdit(category);
+    fixture.detectChanges();
+
+    const page = fixture.nativeElement as HTMLElement;
+    const form = page.querySelector('li form.inline-form') as HTMLFormElement;
+    expect(form).not.toBeNull();
+    expect(form.querySelector('label[for="category-rename-1"]')?.textContent).toContain('Nome');
+    expect(form.querySelector('label[for="category-kind-1"]')?.textContent).toContain('Natureza');
+    expect(form.querySelector('input')?.parentElement).toBe(form);
+    expect(form.querySelector('select')?.parentElement).toBe(form);
+    expect([...form.querySelectorAll('.form-actions button')].map(button =>
+      button.textContent?.trim())).toEqual(['Cancelar', 'Salvar']);
+  });
 });

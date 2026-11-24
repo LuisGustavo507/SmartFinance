@@ -12,8 +12,10 @@
       <label for="counterparty-name">Nome</label>
       <input pInputText id="counterparty-name" name="counterparty-name"
              [(ngModel)]="store.counterpartyName" required maxlength="120" />
-      <p-button type="submit" label="Cadastrar entidade" [loading]="store.busy()"
-                [disabled]="!store.counterpartyName.trim()" />
+      <div class="form-actions">
+        <p-button type="submit" label="Cadastrar entidade" [loading]="store.busy()"
+                  [disabled]="!store.counterpartyName.trim()" />
+      </div>
     </form>
   </p-card>
   <section aria-label="Lista de entidades" class="stack">
@@ -28,13 +30,15 @@
               <span class="badge" [class.inactive]="!entity.active">{{ entity.active ? 'Ativa' : 'Inativa' }}</span>
               @if (store.editingEntityId === entity.id) {
                 <form (ngSubmit)="store.renameCounterparty()" class="inline-form">
-                  <label for="entity-rename" class="sr-only">Novo nome</label>
+                  <label for="entity-rename">Nome da entidade</label>
                   <input pInputText id="entity-rename" name="entity-rename"
                          [(ngModel)]="store.editingEntityName" required maxlength="120" />
-                  <p-button type="submit" label="Salvar" [loading]="store.busy()"
-                            [disabled]="!store.editingEntityName.trim()" />
-                  <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                            (onClick)="store.editingEntityId = null" />
+                  <div class="form-actions">
+                    <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                              (onClick)="store.editingEntityId = null" />
+                    <p-button type="submit" label="Salvar" [loading]="store.busy()"
+                              [disabled]="!store.editingEntityName.trim()" />
+                  </div>
                 </form>
               } @else {
                 <p-button label="Renomear" severity="secondary" [text]="true"

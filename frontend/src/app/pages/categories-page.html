@@ -17,8 +17,10 @@
         <option value="DESPESA">Despesa</option>
         <option value="RECEITA">Receita</option>
       </select>
-      <p-button type="submit" label="Criar categoria"
-                [loading]="store.busy()" [disabled]="!store.categoryName.trim()" />
+      <div class="form-actions">
+        <p-button type="submit" label="Criar categoria"
+                  [loading]="store.busy()" [disabled]="!store.categoryName.trim()" />
+      </div>
     </form>
   </p-card>
   <section aria-label="Lista de categorias" class="stack">
@@ -54,10 +56,12 @@
                     <option value="RECEITA">Receita</option>
                   </select>
                   <small class="muted">A natureza só pode mudar se a categoria nunca foi usada.</small>
-                  <p-button type="submit" label="Salvar" [loading]="store.busy()"
-                            [disabled]="!store.editingCategoryName.trim()" />
-                  <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                            (onClick)="store.editingCategoryId = null" />
+                  <div class="form-actions">
+                    <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                              (onClick)="store.editingCategoryId = null" />
+                    <p-button type="submit" label="Salvar" [loading]="store.busy()"
+                              [disabled]="!store.editingCategoryName.trim()" />
+                  </div>
                 </form>
               }
             </li>

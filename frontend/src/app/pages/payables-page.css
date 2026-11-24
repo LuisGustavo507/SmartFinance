@@ -13,7 +13,6 @@
 .payable-row .badge.pending { background: #E5F2FA; color: #155475; }
 .payable-row .badge.overdue { background: #FCE8E6; color: #9B3028; }
 .payable-row .actions { width: 100%; }
-.form p-button { margin-top: .75rem; }
 @media (max-width: 760px) {
   .payables-grid { grid-template-columns: 1fr; }
 }

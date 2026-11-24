@@ -32,9 +32,11 @@
       <label for="transfer-date">Data e hora da transferência (UTC)</label>
        <app-date-field inputId="transfer-date" name="transfer-date" [time]="true"
                        [(ngModel)]="store.transferDateTime" required />
-      <p-button type="submit" label="Registrar transferência" [loading]="store.busy()"
-                [disabled]="store.transferSourceId === null || store.transferDestinationId === null
-                  || store.transferSourceId === store.transferDestinationId || store.transferAmount === null" />
+      <div class="form-actions">
+        <p-button type="submit" label="Registrar transferência" [loading]="store.busy()"
+                  [disabled]="store.transferSourceId === null || store.transferDestinationId === null
+                    || store.transferSourceId === store.transferDestinationId || store.transferAmount === null" />
+      </div>
     </form>
   </p-card>
 

@@ -57,17 +57,17 @@
       <label for="edit-expected-on">Data prevista</label>
       <app-date-field inputId="edit-expected-on" name="edit-expected-on"
                       [(ngModel)]="store.editExpectedOn" required />
-      <div class="edit-actions">
-        <p-button type="submit" label="Salvar esta ocorrência" [loading]="store.busy()"
-                  [disabled]="editDisabled()" />
+      <div class="form-actions">
+        <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
+                  (onClick)="store.cancelEntryEdit()" />
         @if (store.editingSeriesId !== null) {
           <p-button type="button" label="Salvar esta e as futuras" severity="secondary"
                     [outlined]="true" [loading]="store.busy()"
                     [disabled]="editDisabled()"
                     (onClick)="store.saveEntryEdit('future')" />
         }
-        <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
-                  (onClick)="store.cancelEntryEdit()" />
+        <p-button type="submit" label="Salvar esta ocorrência" [loading]="store.busy()"
+                  [disabled]="editDisabled()" />
       </div>
     </form>
   </p-card>
@@ -256,11 +256,12 @@
                        [min]="1" [max]="120" [useGrouping]="false" />
         <small class="muted">Nos meses sem o dia escolhido, usa-se o último dia do mês.</small>
       }
-      <p-button type="submit" [label]="store.entryPaymentMethod === 'card' ? 'Registrar compra' :
-                store.entryMode === 'series' ? 'Criar série' :
-                store.entryMode === 'planned' ? 'Planejar lançamento' : 'Registrar lançamento'"
-                [loading]="store.busy()"
-                [disabled]="store.busy()" />
+      <div class="form-actions">
+        <p-button type="submit" [label]="store.entryPaymentMethod === 'card' ? 'Registrar compra' :
+                  store.entryMode === 'series' ? 'Criar série' :
+                  store.entryMode === 'planned' ? 'Planejar lançamento' : 'Registrar lançamento'"
+                  [loading]="store.busy()" [disabled]="store.busy()" />
+      </div>
       @if (store.error()) { <p class="alert inline-feedback" aria-hidden="true">{{ store.error() }}</p> }
       @if (store.notice()) {
         <p class="notice inline-feedback" aria-hidden="true">{{ store.notice() }}</p>
@@ -392,10 +393,10 @@
                       @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
                     }
                   </select>
-                  <div class="edit-actions">
-                    <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
+                  <div class="form-actions">
                     <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
                               (onClick)="store.editingEntryEntityId = null" />
+                    <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
                   </div>
                 </form>
               }

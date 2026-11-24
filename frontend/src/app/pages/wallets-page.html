@@ -44,8 +44,10 @@
       <label for="balance-date">Data do saldo inicial</label>
        <app-date-field inputId="balance-date" name="balance-date"
                        [(ngModel)]="store.initialBalanceDate" required />
-      <p-button type="submit" label="Criar carteira" [loading]="store.busy()"
-                [disabled]="!store.walletName.trim()" />
+      <div class="form-actions">
+        <p-button type="submit" label="Criar carteira" [loading]="store.busy()"
+                  [disabled]="!store.walletName.trim()" />
+      </div>
     </form>
   </p-card>
   <section aria-label="Lista de carteiras" class="stack">
