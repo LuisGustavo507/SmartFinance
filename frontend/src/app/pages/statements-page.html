@@ -41,12 +41,18 @@
   <p-card><p class="empty">Selecione um cartão para consultar a fatura do mês.</p></p-card>
 } @else if (selectedStatement(); as statement) {
   <p-card [header]="'Fatura de ' + store.cardLabel(statement.cardId)">
-    <p class="statement-period">
-      {{ monthLabel(store.statementMonth) }} ·
-      <span class="badge" [class.inactive]="statement.status !== 'ABERTA'">
-        {{ statusLabel(statement.status) }}
-      </span>
-    </p>
+    <div class="statement-overview">
+      <p class="statement-period">
+        {{ monthLabel(store.statementMonth) }} ·
+        <span class="badge" [class.inactive]="statement.status !== 'ABERTA'">
+          {{ statusLabel(statement.status) }}
+        </span>
+      </p>
+      <p class="statement-total">
+        <span>Total de gastos da fatura</span>
+        <strong>{{ money(statement.totalAmount) }}</strong>
+      </p>
+    </div>
 
     <section aria-label="Gastos da fatura">
       <h2 class="statement-heading">
@@ -56,7 +62,8 @@
       @if (activeInstallments(statement).length === 0) {
         <p class="empty">Nenhum gasto ativo nesta fatura.</p>
       } @else {
-        <ul class="simple-list statement-list">
+        <ul class="simple-list statement-list scroll-area statement-installments"
+            tabindex="0" aria-label="Gastos ativos da fatura">
           @for (installment of activeInstallments(statement); track installment.id) {
             <li>
               <span class="list-date">{{ installment.number }}ª</span>
@@ -100,10 +107,6 @@
       }
     </section>
 
-    <p class="statement-total">
-      <span>Total de gastos da fatura</span>
-      <strong>{{ money(statement.totalAmount) }}</strong>
-    </p>
     <p class="muted">
       Fechamento em {{ shortDate(statement.closingDate) }} ·
       vencimento em {{ shortDate(statement.dueDate) }}

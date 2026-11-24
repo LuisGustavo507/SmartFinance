@@ -63,6 +63,13 @@ describe('StatementsPage', () => {
     expect(page.textContent).toContain('Compra Gold');
     expect(page.textContent).toContain('Gastos previstos');
     expect(page.textContent).toContain('Total de gastos da fatura');
+    const overview = page.querySelector('.statement-overview') as HTMLElement;
+    const activeList = page.querySelector('.statement-installments') as HTMLElement;
+    expect(overview).not.toBeNull();
+    expect(activeList).not.toBeNull();
+    expect(overview.compareDocumentPosition(activeList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(overview.textContent).toMatch(/R\$\s50,00/);
+    expect(activeList.tabIndex).toBe(0);
     expect(page.textContent).toMatch(/R\$\s50,00/);
     expect(page.textContent).toContain('líquido previsto');
     expect(page.textContent).not.toContain('Compra Prata');
