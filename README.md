@@ -542,9 +542,9 @@ O app é mobile-first e usa rotas com carregamento sob demanda:
 | Rota | Conteúdo |
 |---|---|
 | `/login` | Cadastro e login; usuário autenticado é redirecionado para a home |
-| `/` | Home com saldo total, totais do mês, últimos lançamentos e atalhos |
+| `/` | Home com saldo total, resumo separado em efetivado e previsto/a pagar, resultado projetado, últimos lançamentos e atalhos |
 | `/carteiras` | Cadastro e saldo estimado de cada carteira |
-| `/lancamentos` | Lançamentos do mês, resumo, previsões, séries finitas e edição |
+| `/lancamentos` | Registro e lista por mês, previsões, séries finitas e detalhes/edição em modal |
 | `/cartoes` | Cadastro, edição e ativação de cartões |
 | `/faturas` | Faturas por cartão e mês, gastos e total bruto, estorno, créditos e pagamento |
 | `/transferencias` | Transferência entre carteiras e listagem do mês UTC |
@@ -563,10 +563,15 @@ mensais finitas e consulta suas ocorrências, cadastra cartões de crédito,
 registra compras no cartão à vista ou parceladas em Lançamentos, acompanha
 as faturas por cartão e mês em Faturas e paga as faturas fechadas,
 cria/lista transferências por
-mês UTC, filtra os lançamentos do mês por entidade e mostra um resumo mensal
-explicitamente parcial com totais realizados, previstos e resultado
-projetado. Em `401` de leitura protegida tenta renovar uma vez; `403` não
-dispara renovação e uma gravação com access expirado exige novo login
+mês UTC. A home separa receitas, despesas e resultado **efetivados** de
+receitas e despesas **previstas**, com contas a pagar pendentes como linha
+separada no grupo “Previsto / a pagar”. O subtotal deste grupo inclui as
+contas pendentes; o resultado projetado soma esse subtotal ao efetivado.
+Créditos de estorno ficam à parte. Em `/lancamentos`, a seleção do mês e a
+lista não exibem filtro por entidade nem resumo duplicado: clicar em uma linha
+abre detalhes, edição e alteração da entidade quando o mês está aberto.
+Cancelar ainda exige confirmação. Em `401` de leitura protegida tenta renovar
+uma vez; `403` não dispara renovação e uma gravação com access expirado exige novo login
 (requisições que alteram estado não são repetidas após `401`). Não usa
 `localStorage` para tokens. O build separa as
 páginas em chunks; o inicial ainda supera o orçamento padrão por causa do

@@ -24,7 +24,7 @@ describe('EntriesPage', () => {
     }).compileComponents();
   });
 
-  it('offers edit and confirmed cancellation only within the editable month', async () => {
+  it('keeps the list compact and offers actions in details only for an open month', async () => {
     const fixture = TestBed.createComponent(EntriesPage);
     const store = TestBed.inject(FinanceStore);
     const today = store.currentBusinessDate();
@@ -44,11 +44,32 @@ describe('EntriesPage', () => {
       .querySelectorAll('.simple-list li')];
     const current = rows.find(row => row.textContent?.includes('Compra atual'))!;
     const closed = rows.find(row => row.textContent?.includes('Compra antiga'))!;
-    expect(current.textContent).toContain('Editar');
-    expect(current.textContent).toContain('Cancelar');
+    expect(current.textContent).not.toContain('Editar');
+    expect(current.textContent).not.toContain('Cancelar');
+    (current.querySelector('.entry-row-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(document.querySelector('.p-dialog')?.textContent).toContain('Editar');
+    expect(document.querySelector('.p-dialog')?.textContent).toContain('Cancelar lançamento');
     expect(closed.textContent).not.toContain('Editar');
-    expect(closed.textContent).not.toContain('Cancelar');
-    expect(closed.textContent).not.toContain('Entidade');
+  });
+
+  it('shows closed-month details without actions', async () => {
+    const fixture = TestBed.createComponent(EntriesPage);
+    const store = TestBed.inject(FinanceStore);
+    const previous = new Date(`${store.currentBusinessDate().slice(0, 7)}-01T12:00:00Z`);
+    previous.setUTCDate(0);
+    store.entries.set([{ ...entry, id: 22, status: 'EFETIVADO', description: 'Compra antiga',
+      occurredOn: previous.toISOString().slice(0, 10), expectedOn: null,
+      referenceMonth: `${previous.toISOString().slice(0, 7)}-01`, seriesId: null }]);
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('#entry-list .entry-row-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(document.querySelector('.p-dialog')?.textContent).toContain('mês deste lançamento já foi encerrado');
+    expect(document.querySelector('.p-dialog')?.textContent).not.toContain('Cancelar lançamento');
   });
 
   it('shows only card-specific fields for a credit-card purchase', async () => {
@@ -110,7 +131,7 @@ describe('EntriesPage', () => {
     expect(page.textContent).toContain('Data da compra');
   });
 
-  it('renders the month summary, the series marker and the series details', async () => {
+  it('keeps only the month and list and opens series and editing from details', async () => {
     const fixture = TestBed.createComponent(EntriesPage);
     const store = TestBed.inject(FinanceStore);
     store.selectedMonth = '2099-01';
@@ -140,23 +161,25 @@ describe('EntriesPage', () => {
     expect(compiled.querySelectorAll('#entry-mode option')).toHaveLength(3);
     expect(compiled.textContent).toContain('série 1/3');
     expect(compiled.textContent).toContain('Não classificada');
-    expect(compiled.textContent).toContain('Despesas por necessidade');
-    expect(compiled.textContent).toContain('Por categoria');
+    expect(compiled.textContent).not.toContain('Despesas por necessidade');
+    expect(compiled.textContent).not.toContain('Por categoria');
+    expect(compiled.querySelector('#entity-filter')).toBeNull();
     expect(compiled.textContent).toContain('Aluguel');
-    expect(compiled.textContent).toContain('Salário');
-    expect(compiled.textContent).toMatch(/previsto\s−\sR\$\s40,00/);
-    expect(compiled.textContent).toMatch(/\+\sR\$\s90,00/);
-    expect(compiled.textContent).toContain('Necessária · previstas');
-    expect(compiled.textContent).toContain('Não classificada · realizadas');
     expect(compiled.querySelector('#entry-necessity')).not.toBeNull();
-    expect(compiled.textContent).toContain('Resumo de janeiro de 2099');
+    expect(compiled.textContent).not.toContain('Resumo de janeiro de 2099');
     expect(compiled.textContent).toMatch(/R\$\s40,00/);
 
     const showSeries = vi.spyOn(store, 'showSeries').mockResolvedValue(undefined);
-    const button = [...compiled.querySelectorAll('button')]
+    (compiled.querySelector('#entry-list .entry-row-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const button = [...document.querySelectorAll('.p-dialog button')]
       .find(candidate => candidate.textContent?.includes('Ver série')) as HTMLButtonElement;
     button.click();
     expect(showSeries).toHaveBeenCalledWith(8);
+    await fixture.whenStable();
+    fixture.detectChanges();
 
     store.selectedSeriesId.set(8);
     store.selectedSeries.set([
@@ -168,37 +191,36 @@ describe('EntriesPage', () => {
     expect(compiled.textContent).toContain('Série 8');
     expect(compiled.textContent).toContain('2 ocorrências geradas');
     expect(compiled.textContent).toContain('CANCELADO');
-    const cancel = [...compiled.querySelectorAll('button')]
-      .filter(candidate => candidate.textContent?.includes('Cancelar'));
-    expect(cancel.length).toBeGreaterThan(0);
-
-    const editButtons = [...compiled.querySelectorAll('button')]
-      .filter(candidate => candidate.textContent?.trim() === 'Editar');
-    expect(editButtons.length).toBeGreaterThan(0);
-    (editButtons[0] as HTMLButtonElement).click();
+    expect(compiled.querySelector('#series-details .entry-row-trigger')).not.toBeNull();
+    (compiled.querySelector('#series-details .entry-row-trigger') as HTMLButtonElement).click();
     fixture.detectChanges();
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const edit = [...document.querySelectorAll('.p-dialog button')]
+      .find(candidate => candidate.textContent?.trim() === 'Editar') as HTMLButtonElement;
+    edit.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
     fixture.detectChanges();
     expect(store.editDescription).toBe('Aluguel');
-    expect(compiled.querySelector('#entry-edit')).not.toBeNull();
-    expect((compiled.querySelector('#edit-description') as HTMLInputElement).value)
+    expect((document.querySelector('#edit-description') as HTMLInputElement).value)
       .toBe('Aluguel');
     expect(store.editExpectedOn).toBe('2099-01-31');
-    expect((compiled.querySelector('#edit-necessity') as HTMLSelectElement).value)
+    expect((document.querySelector('#edit-necessity') as HTMLSelectElement).value)
       .toContain('null');
 
     const saveFuture = vi.spyOn(store, 'saveEntryEdit').mockResolvedValue(undefined);
-    const futureButton = [...compiled.querySelectorAll('button')]
+    const futureButton = [...document.querySelectorAll('.p-dialog button')]
       .find(candidate => candidate.textContent?.includes('Salvar esta e as futuras')) as HTMLButtonElement;
     expect(futureButton).toBeTruthy();
     futureButton.click();
     expect(saveFuture).toHaveBeenCalledWith('future');
 
-    const closeEdit = [...compiled.querySelectorAll('button')]
-      .find(candidate => candidate.textContent?.includes('Cancelar edição')) as HTMLButtonElement;
+    const closeEdit = [...document.querySelectorAll('.p-dialog button')]
+      .find(candidate => candidate.textContent?.includes('Voltar')) as HTMLButtonElement;
     closeEdit.click();
     fixture.detectChanges();
-    expect(compiled.querySelector('#entry-edit')).toBeNull();
+    expect(document.querySelector('#edit-description')).toBeNull();
 
     store.selectedSeriesId.set(null);
     store.selectedSeries.set([]);
@@ -249,8 +271,12 @@ describe('EntriesPage', () => {
     await fixture.whenStable();
 
     const page = fixture.nativeElement as HTMLElement;
-    const trigger = [...page.querySelectorAll('button')]
-      .find(button => button.textContent?.trim() === 'Entidade') as HTMLButtonElement;
+    (page.querySelector('#entry-list .entry-row-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const trigger = [...document.querySelectorAll('.p-dialog button')]
+      .find(button => button.textContent?.trim() === 'Alterar entidade') as HTMLButtonElement;
     trigger.click();
     fixture.detectChanges();
     await fixture.whenStable();

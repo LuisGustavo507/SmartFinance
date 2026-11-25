@@ -555,7 +555,7 @@ export class FinanceStore {
       this.filterEntityId = null;
       await this.reloadMonth();
       this.notice.set(this.entryMode === 'series' ? 'Série criada. Confira as ocorrências abaixo.'
-        : 'Lançamento registrado. A lista e o resumo do mês foram atualizados.');
+        : 'Lançamento registrado. Ele já aparece na lista do mês.');
     } catch (error) {
       if (created) {
         this.notice.set('Lançamento registrado.');

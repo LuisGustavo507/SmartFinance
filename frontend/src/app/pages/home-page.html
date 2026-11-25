@@ -24,17 +24,17 @@
 
 <div class="stats">
   <p-card styleClass="stat">
-    <span class="stat-label">Receitas realizadas</span>
+    <span class="stat-label">Receitas efetivadas</span>
     <strong class="stat-value positive">{{ money(store.monthlySummary()?.realizedIncome ?? 0) }}</strong>
   </p-card>
   <p-card styleClass="stat">
-    <span class="stat-label">Despesas realizadas</span>
+    <span class="stat-label">Despesas efetivadas</span>
     <strong class="stat-value negative">{{ money(store.monthlySummary()?.realizedExpenses ?? 0) }}</strong>
   </p-card>
   <p-card styleClass="stat">
     <span class="stat-label">Resultado projetado</span>
     <strong class="stat-value">{{ money(store.monthlySummary()?.projectedResult ?? 0) }}</strong>
-    <small>Realizados + previstos + contas pendentes do mês</small>
+    <small>Resultado efetivado + resultado previsto / a pagar</small>
   </p-card>
 </div>
 
@@ -65,12 +65,23 @@
   </p-card>
 
   <p-card header="Resumo de {{ monthLabel(store.selectedMonth) }}">
+    <h3 class="summary-heading">Efetivado</h3>
     <ul class="summary-list">
-      <li><span>Resultado realizado</span><strong>{{ money(store.monthlySummary()?.realizedResult ?? 0) }}</strong></li>
+      <li><span>Receitas</span><strong>{{ money(store.monthlySummary()?.realizedIncome ?? 0) }}</strong></li>
+      <li><span>Despesas</span><strong>{{ money(store.monthlySummary()?.realizedExpenses ?? 0) }}</strong></li>
+      <li class="total"><span>Resultado efetivado</span><strong>{{ money(store.monthlySummary()?.realizedResult ?? 0) }}</strong></li>
+    </ul>
+    <h3 class="summary-heading">Previsto / a pagar</h3>
+    <ul class="summary-list">
       <li><span>Receitas previstas</span><strong>{{ money(store.monthlySummary()?.plannedIncome ?? 0) }}</strong></li>
       <li><span>Despesas previstas</span><strong>{{ money(store.monthlySummary()?.plannedExpenses ?? 0) }}</strong></li>
       <li><span>Contas a pagar pendentes</span><strong>{{ money(store.monthlySummary()?.pendingExpenses ?? 0) }}</strong></li>
-      <li class="total"><span>Resultado projetado</span><strong>{{ money(store.monthlySummary()?.projectedResult ?? 0) }}</strong></li>
+      <li class="total"><span>Resultado previsto / a pagar</span><strong>{{ money(
+        (store.monthlySummary()?.plannedIncome ?? 0) -
+        (store.monthlySummary()?.plannedExpenses ?? 0) -
+        (store.monthlySummary()?.pendingExpenses ?? 0)) }}</strong></li>
+    </ul>
+    <ul class="summary-list summary-credits">
       <li><span>Créditos de estorno gerados</span><strong>{{ money(store.monthlySummary()?.reversalCreditsGenerated ?? 0) }}</strong></li>
       <li><span>Créditos aplicados em faturas</span><strong>{{ money(store.monthlySummary()?.reversalCreditsApplied ?? 0) }}</strong></li>
     </ul>
