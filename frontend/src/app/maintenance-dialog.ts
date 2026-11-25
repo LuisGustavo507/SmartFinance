@@ -45,6 +45,7 @@ export class MaintenanceDialog implements OnChanges {
   @Input() hasUnsavedChanges: () => boolean = () => false;
   @Input() busy = false;
   @Input() maxWidth = '28rem';
+  @Input() fallbackFocusSelector = '';
   @Output() readonly closeRequested = new EventEmitter<void>();
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -79,7 +80,17 @@ export class MaintenanceDialog implements OnChanges {
     const trigger = this.trigger;
     this.trigger = null;
     queueMicrotask(() => {
-      if (trigger?.isConnected) trigger.focus();
+      if (trigger?.isConnected) {
+        trigger.focus();
+        return;
+      }
+      const fallback =
+        (this.fallbackFocusSelector
+          ? document.querySelector<HTMLElement>(this.fallbackFocusSelector)
+          : null)
+        ?? document.querySelector<HTMLElement>('main [tabindex="0"]')
+        ?? document.querySelector<HTMLElement>('main');
+      fallback?.focus();
     });
   }
 }
