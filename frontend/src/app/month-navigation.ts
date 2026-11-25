@@ -12,11 +12,9 @@ import { monthLabel } from './format';
       <p-button icon="pi pi-chevron-left" [ariaLabel]="'Mês anterior a ' + monthLabel(month)"
                 severity="secondary" [outlined]="true"
                 [style]="{ width: '44px', height: '44px' }" (onClick)="shift(-1)" />
-      <div class="month-navigation-current">
-        <strong aria-live="polite">{{ monthLabel(month) }}</strong>
-        <app-date-field [inputId]="inputId" [month]="true" [ngModel]="month"
-                        (ngModelChange)="change($event)" />
-      </div>
+      <strong aria-live="polite">{{ monthLabel(month) }}</strong>
+      <app-date-field [inputId]="inputId" [month]="true" [ngModel]="month"
+                      (ngModelChange)="change($event)" />
       <p-button icon="pi pi-chevron-right" [ariaLabel]="'Mês seguinte a ' + monthLabel(month)"
                 severity="secondary" [outlined]="true"
                 [style]="{ width: '44px', height: '44px' }" (onClick)="shift(1)" />
@@ -27,12 +25,15 @@ import { monthLabel } from './format';
     .month-navigation {
       display: grid;
       grid-template-columns: 2.75rem minmax(0, 1fr) 2.75rem;
+      grid-template-areas: '. label .' 'previous picker next';
       align-items: center;
-      gap: .5rem;
+      gap: .25rem .5rem;
       width: 100%;
     }
-    .month-navigation-current { min-width: 0; text-align: center; }
-    .month-navigation-current strong { display: block; margin-bottom: .25rem; }
+    .month-navigation > p-button:first-child { grid-area: previous; }
+    .month-navigation > strong { grid-area: label; min-width: 0; text-align: center; }
+    .month-navigation > app-date-field { grid-area: picker; min-width: 0; }
+    .month-navigation > p-button:last-child { grid-area: next; }
   `]
 })
 export class MonthNavigation {
