@@ -74,44 +74,6 @@
       <li><span>Créditos de estorno gerados</span><strong>{{ money(store.monthlySummary()?.reversalCreditsGenerated ?? 0) }}</strong></li>
       <li><span>Créditos aplicados em faturas</span><strong>{{ money(store.monthlySummary()?.reversalCreditsApplied ?? 0) }}</strong></li>
     </ul>
-    @if (categoryRows(store.monthlySummary()?.categoryTotals).length) {
-      <h3>Por categoria</h3>
-      <ul class="summary-list">
-        @for (row of categoryRows(store.monthlySummary()?.categoryTotals); track row.name) {
-          <li>
-            <span>{{ row.name }}
-              <small class="badge" [class.inactive]="row.kind === 'DESPESA'">
-                {{ row.kind === 'RECEITA' ? 'Receita' : 'Despesa' }}
-              </small>
-            </span>
-            <strong>
-              {{ row.kind === 'RECEITA' ? '+' : '−' }} {{ money(row.realized) }}
-                @if (row.planned > 0) {
-                  · previsto {{ row.kind === 'RECEITA' ? '+' : '−' }} {{ money(row.planned) }}
-                }
-                @if (row.pending > 0) {
-                  · conta pendente − {{ money(row.pending) }}
-                }
-            </strong>
-          </li>
-        }
-      </ul>
-    }
-    @if (store.monthlySummary()?.necessityTotals?.length) {
-      <h3>Despesas por necessidade</h3>
-      <ul class="summary-list">
-        @for (total of store.monthlySummary()?.necessityTotals ?? []; track total.necessity) {
-          <li><span>{{ necessityLabel(total.necessity) }} · realizadas</span>
-              <strong>{{ money(total.realizedExpenses) }}</strong></li>
-          <li><span>{{ necessityLabel(total.necessity) }} · previstas</span>
-              <strong>{{ money(total.plannedExpenses) }}</strong></li>
-          @if ((total.pendingExpenses ?? 0) > 0) {
-            <li><span>{{ necessityLabel(total.necessity) }} · contas pendentes</span>
-                <strong>{{ money(total.pendingExpenses ?? 0) }}</strong></li>
-          }
-        }
-      </ul>
-    }
     <small class="muted">Inclui despesas de cartão. Créditos são exibidos à parte, sem alterar o resultado.</small>
   </p-card>
 </div>

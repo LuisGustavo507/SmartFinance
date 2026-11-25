@@ -3,7 +3,7 @@ import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { CardModule } from 'primeng/card';
 import { FinanceStore } from '../finance-store';
-import { categoryRows, money, monthLabel, necessityLabel, shortDate } from '../format';
+import { money, monthLabel, shortDate } from '../format';
 
 @Component({
   selector: 'app-home-page',
@@ -16,8 +16,6 @@ export class HomePage {
   readonly money = money;
   readonly monthLabel = monthLabel;
   readonly shortDate = shortDate;
-  readonly necessityLabel = necessityLabel;
-  readonly categoryRows = categoryRows;
 
   activeWalletsLabel(): string {
     const count = this.store.activeWallets().length;
