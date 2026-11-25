@@ -57,17 +57,17 @@
       <label for="edit-expected-on">Data prevista</label>
       <app-date-field inputId="edit-expected-on" name="edit-expected-on"
                       [(ngModel)]="store.editExpectedOn" required />
-      <div class="edit-actions">
-        <p-button type="submit" label="Salvar esta ocorrência" [loading]="store.busy()"
-                  [disabled]="editDisabled()" />
+      <div class="form-actions">
+        <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
+                  (onClick)="store.cancelEntryEdit()" />
         @if (store.editingSeriesId !== null) {
           <p-button type="button" label="Salvar esta e as futuras" severity="secondary"
                     [outlined]="true" [loading]="store.busy()"
                     [disabled]="editDisabled()"
                     (onClick)="store.saveEntryEdit('future')" />
         }
-        <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
-                  (onClick)="store.cancelEntryEdit()" />
+        <p-button type="submit" label="Salvar esta ocorrência" [loading]="store.busy()"
+                  [disabled]="editDisabled()" />
       </div>
     </form>
   </p-card>
@@ -256,11 +256,12 @@
                        [min]="1" [max]="120" [useGrouping]="false" />
         <small class="muted">Nos meses sem o dia escolhido, usa-se o último dia do mês.</small>
       }
-      <p-button type="submit" [label]="store.entryPaymentMethod === 'card' ? 'Registrar compra' :
-                store.entryMode === 'series' ? 'Criar série' :
-                store.entryMode === 'planned' ? 'Planejar lançamento' : 'Registrar lançamento'"
-                [loading]="store.busy()"
-                [disabled]="store.busy()" />
+      <div class="form-actions">
+        <p-button type="submit" [label]="store.entryPaymentMethod === 'card' ? 'Registrar compra' :
+                  store.entryMode === 'series' ? 'Criar série' :
+                  store.entryMode === 'planned' ? 'Planejar lançamento' : 'Registrar lançamento'"
+                  [loading]="store.busy()" [disabled]="store.busy()" />
+      </div>
       @if (store.error()) { <p class="alert inline-feedback" aria-hidden="true">{{ store.error() }}</p> }
       @if (store.notice()) {
         <p class="notice inline-feedback" aria-hidden="true">{{ store.notice() }}</p>
@@ -275,8 +276,8 @@
     <div class="filters">
       <div>
         <label for="entry-month">Mês de referência</label>
-        <app-date-field inputId="entry-month" name="entry-month" [month]="true"
-                        [(ngModel)]="store.selectedMonth" (ngModelChange)="store.loadEntries()" />
+        <app-month-navigation inputId="entry-month" [month]="store.selectedMonth"
+                              (monthChange)="changeMonth($event)" />
       </div>
       <div>
         <label for="entity-filter">Entidade</label>
@@ -381,24 +382,7 @@
                           [disabled]="store.busy()" (onClick)="store.cancelEntry(entry.id)" />
               }
               <p-button label="Entidade" severity="secondary" [text]="true"
-                        [disabled]="store.busy()" (onClick)="store.startEntryEntityEdit(entry)" />
-              @if (store.editingEntryEntityId === entry.id) {
-                <form (ngSubmit)="store.saveEntryEntity()" class="form">
-                  <label [for]="'entry-entity-' + entry.id">Entidade do lançamento</label>
-                  <select [id]="'entry-entity-' + entry.id" [name]="'entry-entity-' + entry.id"
-                          [(ngModel)]="store.entryEntitySelection">
-                    <option [ngValue]="null">Sem entidade</option>
-                    @for (entity of store.counterparties(); track entity.id) {
-                      @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
-                    }
-                  </select>
-                  <div class="edit-actions">
-                    <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
-                    <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                              (onClick)="store.editingEntryEntityId = null" />
-                  </div>
-                </form>
-              }
+                        [disabled]="store.busy()" (onClick)="openEntryEntityEditor(entry)" />
             </li>
           }
         </ul>
@@ -406,3 +390,31 @@
     </p-card>
   </div>
 </div>
+
+<app-maintenance-dialog #entryEntityEditor dialogTitle="Entidade do lançamento"
+                        [visible]="store.editingEntryEntityId !== null"
+                        [hasUnsavedChanges]="entryEntityDirty" [busy]="store.busy()"
+                        (closeRequested)="closeEntryEntityEditor()">
+  @if (editedEntryForEntity(); as entry) {
+    <p class="muted">
+      {{ shortDate(entry.occurredOn ?? entry.expectedOn) }} ·
+      {{ entry.description || 'Sem descrição' }} · {{ money(entry.amount) }}
+    </p>
+    <form (ngSubmit)="saveEntryEntity()" class="form">
+      <label for="entry-entity-edit">Entidade do lançamento</label>
+      <select id="entry-entity-edit" name="entry-entity-edit"
+              [(ngModel)]="store.entryEntitySelection">
+        <option [ngValue]="null">Sem entidade</option>
+        @for (entity of entryEntityChoices(entry); track entity.id) {
+          <option [ngValue]="entity.id">{{ entity.name }}{{ entity.active ? '' : ' (inativa)' }}</option>
+        }
+      </select>
+      <div class="form-actions">
+        <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                  (onClick)="entryEntityEditor.requestClose()" />
+        <p-button type="submit" label="Salvar entidade" [loading]="store.busy()"
+                  [disabled]="store.busy() || !entryEntityDirty()" />
+      </div>
+    </form>
+  }
+</app-maintenance-dialog>

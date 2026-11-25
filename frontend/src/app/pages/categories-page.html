@@ -17,8 +17,10 @@
         <option value="DESPESA">Despesa</option>
         <option value="RECEITA">Receita</option>
       </select>
-      <p-button type="submit" label="Criar categoria"
-                [loading]="store.busy()" [disabled]="!store.categoryName.trim()" />
+      <div class="form-actions">
+        <p-button type="submit" label="Criar categoria"
+                  [loading]="store.busy()" [disabled]="!store.categoryName.trim()" />
+      </div>
     </form>
   </p-card>
   <section aria-label="Lista de categorias" class="stack">
@@ -29,37 +31,15 @@
         <ul class="entity-list scroll-area" tabindex="0">
           @for (category of store.categories(); track category.id) {
             <li>
-              <span>{{ category.name }}</span>
+              <span class="entity-name">{{ category.name }}</span>
               <span class="badge" [class.inactive]="category.kind === 'RECEITA'">
                 {{ category.kind === 'RECEITA' ? 'Receita' : 'Despesa' }}
               </span>
               @if (!category.active) { <small class="muted">inativa</small> }
-              <p-button label="Editar" severity="secondary" [text]="true"
-                        [disabled]="store.busy()" (onClick)="store.startCategoryEdit(category)" />
-              <p-button [label]="category.active ? 'Desativar' : 'Reativar'"
-                        severity="secondary" [text]="true" [disabled]="store.busy()"
-                         (onClick)="store.setCategoryActive(category, !category.active)" />
-              <p-button label="Excluir" severity="danger" [text]="true"
-                        [disabled]="store.busy()" (onClick)="store.deleteCategory(category)" />
-              @if (store.editingCategoryId === category.id) {
-                <form (ngSubmit)="store.saveCategory()" class="inline-form">
-                  <label [for]="'category-rename-' + category.id">Nome da categoria</label>
-                  <input pInputText [id]="'category-rename-' + category.id"
-                         [name]="'category-rename-' + category.id"
-                         [(ngModel)]="store.editingCategoryName" required maxlength="120" />
-                  <label [for]="'category-kind-' + category.id">Natureza</label>
-                  <select [id]="'category-kind-' + category.id" [name]="'category-kind-' + category.id"
-                          [(ngModel)]="store.editingCategoryKind">
-                    <option value="DESPESA">Despesa</option>
-                    <option value="RECEITA">Receita</option>
-                  </select>
-                  <small class="muted">A natureza só pode mudar se a categoria nunca foi usada.</small>
-                  <p-button type="submit" label="Salvar" [loading]="store.busy()"
-                            [disabled]="!store.editingCategoryName.trim()" />
-                  <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                            (onClick)="store.editingCategoryId = null" />
-                </form>
-              }
+              <p-button icon="pi pi-pencil" [ariaLabel]="'Editar categoria ' + category.name"
+                        [title]="'Editar categoria ' + category.name" severity="secondary"
+                        [text]="true" [disabled]="store.busy()"
+                        (onClick)="store.startCategoryEdit(category)" />
             </li>
           }
         </ul>
@@ -67,3 +47,36 @@
     }
   </section>
 </div>
+
+<app-maintenance-dialog #editor dialogTitle="Gerenciar categoria"
+                        [visible]="store.editingCategoryId !== null"
+                        [hasUnsavedChanges]="categoryDirty" [busy]="store.busy()"
+                        (closeRequested)="closeEditor()">
+  @if (editedCategory(); as category) {
+    <form (ngSubmit)="store.saveCategory()" class="form">
+      <label for="category-edit-name">Nome da categoria</label>
+      <input pInputText id="category-edit-name" name="category-edit-name"
+             [(ngModel)]="store.editingCategoryName" required maxlength="120" />
+      <label for="category-edit-kind">Natureza</label>
+      <select id="category-edit-kind" name="category-edit-kind"
+              [(ngModel)]="store.editingCategoryKind">
+        <option value="DESPESA">Despesa</option>
+        <option value="RECEITA">Receita</option>
+      </select>
+      <small class="muted">A natureza só pode mudar se a categoria nunca foi usada.</small>
+      <div class="form-actions">
+        <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                  (onClick)="editor.requestClose()" />
+        <p-button type="submit" label="Salvar" [loading]="store.busy()"
+                  [disabled]="!store.editingCategoryName.trim()" />
+      </div>
+    </form>
+    <div class="record-operations">
+      <p-button [label]="category.active ? 'Desativar' : 'Reativar'"
+                severity="secondary" [outlined]="true" [disabled]="store.busy()"
+                (onClick)="store.setCategoryActive(category, !category.active)" />
+      <p-button label="Excluir" severity="danger" [outlined]="true"
+                [disabled]="store.busy()" (onClick)="store.deleteCategory(category)" />
+    </div>
+  }
+</app-maintenance-dialog>

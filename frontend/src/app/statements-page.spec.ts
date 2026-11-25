@@ -63,6 +63,13 @@ describe('StatementsPage', () => {
     expect(page.textContent).toContain('Compra Gold');
     expect(page.textContent).toContain('Gastos previstos');
     expect(page.textContent).toContain('Total de gastos da fatura');
+    const overview = page.querySelector('.statement-overview') as HTMLElement;
+    const activeList = page.querySelector('.statement-installments') as HTMLElement;
+    expect(overview).not.toBeNull();
+    expect(activeList).not.toBeNull();
+    expect(overview.compareDocumentPosition(activeList) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(overview.textContent).toMatch(/R\$\s50,00/);
+    expect(activeList.tabIndex).toBe(0);
     expect(page.textContent).toMatch(/R\$\s50,00/);
     expect(page.textContent).toContain('líquido previsto');
     expect(page.textContent).not.toContain('Compra Prata');
@@ -99,6 +106,64 @@ describe('StatementsPage', () => {
     expect(history.textContent).toContain('Estornada');
     expect(page.textContent).toMatch(/R\$\s60,00/);
     expect(page.textContent).toContain('Valor a pagar');
+    const historicalButton = history.querySelector('button.statement-row-trigger') as HTMLButtonElement;
+    historicalButton.click();
+    fixture.detectChanges();
+    const dialog = document.querySelector('.p-dialog') as HTMLElement;
+    expect(dialog.textContent).toContain('Entidade da compra');
+    expect(dialog.textContent).not.toContain('Estornar compra inteira');
+  });
+
+  it('opens installment details from a single accessible row and reverses the purchase id', async () => {
+    const store = TestBed.inject(FinanceStore);
+    vi.spyOn(store, 'loadCards').mockResolvedValue(undefined);
+    const reverse = vi.spyOn(store, 'reverseCardPurchase').mockResolvedValue(undefined);
+    store.cards.set(cards);
+    store.statementCardId = 3;
+    store.statementMonth = '2026-12';
+    store.cardStatements.set([statement]);
+    const fixture = TestBed.createComponent(StatementsPage);
+    fixture.detectChanges();
+    const page = fixture.nativeElement as HTMLElement;
+    const row = page.querySelector('.statement-installments li') as HTMLElement;
+    const trigger = row.querySelector('button.statement-row-trigger') as HTMLButtonElement;
+    expect(row.querySelectorAll('button')).toHaveLength(1);
+    expect(trigger.getAttribute('aria-label')).toContain('R$');
+    trigger.click();
+    fixture.detectChanges();
+    expect(store.editingPurchaseEntityId).toBe(7);
+    const dialog = document.querySelector('.p-dialog') as HTMLElement;
+    expect(dialog.textContent).toContain('Compra Gold');
+    expect(dialog.textContent).toContain('Entidade da compra');
+    const reverseButton = [...dialog.querySelectorAll<HTMLButtonElement>('button')]
+      .find(button => button.textContent?.trim() === 'Estornar compra inteira')!;
+    reverseButton.click();
+    await fixture.whenStable();
+    expect(reverse).toHaveBeenCalledWith(7);
+  });
+
+  it('keeps an inactive entity visible when reviewing a linked purchase', async () => {
+    const store = TestBed.inject(FinanceStore);
+    vi.spyOn(store, 'loadCards').mockResolvedValue(undefined);
+    store.cards.set(cards);
+    store.statementCardId = 3;
+    store.statementMonth = '2026-12';
+    store.counterparties.set([{ id: 9, ownerUserId: 1, name: 'Fornecedor antigo', active: false }]);
+    store.cardStatements.set([{ ...statement,
+      installments: [{ ...installment, entityId: 9, entityName: 'Fornecedor antigo' }] }]);
+    const fixture = TestBed.createComponent(StatementsPage);
+    fixture.detectChanges();
+    (fixture.nativeElement as HTMLElement)
+      .querySelector('button.statement-row-trigger')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const select = document.querySelector('#statement-entity') as HTMLSelectElement;
+    expect([...select.options].map(option => option.textContent)).toEqual([
+      'Sem entidade', 'Fornecedor antigo (inativa)'
+    ]);
+    expect(select.selectedIndex).toBe(1);
   });
 
   it('keeps payment available for a closed statement', () => {

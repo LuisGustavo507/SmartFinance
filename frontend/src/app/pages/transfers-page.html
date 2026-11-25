@@ -32,17 +32,19 @@
       <label for="transfer-date">Data e hora da transferência (UTC)</label>
        <app-date-field inputId="transfer-date" name="transfer-date" [time]="true"
                        [(ngModel)]="store.transferDateTime" required />
-      <p-button type="submit" label="Registrar transferência" [loading]="store.busy()"
-                [disabled]="store.transferSourceId === null || store.transferDestinationId === null
-                  || store.transferSourceId === store.transferDestinationId || store.transferAmount === null" />
+      <div class="form-actions">
+        <p-button type="submit" label="Registrar transferência" [loading]="store.busy()"
+                  [disabled]="store.transferSourceId === null || store.transferDestinationId === null
+                    || store.transferSourceId === store.transferDestinationId || store.transferAmount === null" />
+      </div>
     </form>
   </p-card>
 
   <div class="stack">
     <div>
       <label for="transfer-month">Mês (UTC)</label>
-       <app-date-field inputId="transfer-month" name="transfer-month" [month]="true"
-                       [(ngModel)]="store.transferMonth" (ngModelChange)="store.loadTransfers()" />
+       <app-month-navigation inputId="transfer-month" [month]="store.transferMonth"
+                             (monthChange)="changeMonth($event)" />
     </div>
     <p-card [header]="'Transferências de ' + monthLabel(store.transferMonth)">
       @if (store.transfersLoading()) {

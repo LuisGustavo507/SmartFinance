@@ -75,7 +75,16 @@ button, input, select { font: inherit; }
 .form label, .filters label, .stack > div > label { font-weight: 600; font-size: .92rem; }
 .form input, .form p-inputnumber, .form p-password { width: 100%; }
 .p-datepicker-dropdown { min-width: 44px; min-height: 44px; }
-.form p-button { margin-top: .85rem; }
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: .5rem;
+  width: 100%;
+  margin-top: .85rem;
+}
+.form .form-actions p-button { margin-top: 0; }
 .form select, .stack select {
   width: 100%;
   padding: .62rem .7rem;
@@ -129,8 +138,24 @@ input.p-inputtext { width: 100%; padding: .62rem .7rem; border-radius: .5rem; }
 }
 .entity-list li:last-child { border-bottom: 0; }
 .entity-name { flex: 1 1 10rem; font-weight: 600; }
-.inline-form { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem; flex-basis: 100%; }
-.inline-form input { flex: 1 1 8rem; }
+.inline-form {
+  display: grid;
+  gap: .55rem;
+  flex-basis: 100%;
+  min-width: 0;
+  padding-top: .75rem;
+}
+.inline-form label { font-weight: 600; font-size: .92rem; }
+.inline-form input, .inline-form select { width: 100%; min-width: 0; }
+.record-operations {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: .5rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--sf-border-soft);
+}
 
 /*
  * Long lists scroll inside a bounded area instead of stretching the page.

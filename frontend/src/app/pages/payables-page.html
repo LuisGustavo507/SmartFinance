@@ -51,13 +51,13 @@
       <label for="payable-due">Vencimento</label>
       <app-date-field inputId="payable-due" name="due" [(ngModel)]="dueOn" required />
 
-      <div class="actions">
-        <p-button type="submit" [label]="editingId === null ? 'Cadastrar conta' : 'Salvar correção'"
-                  [loading]="busy()" [disabled]="busy() || !categoryId || !necessity || !amount || !dueOn" />
+      <div class="form-actions">
         @if (editingId !== null) {
           <p-button type="button" label="Descartar edição" severity="secondary"
                     [text]="true" [disabled]="busy()" (onClick)="resetForm()" />
         }
+        <p-button type="submit" [label]="editingId === null ? 'Cadastrar conta' : 'Salvar correção'"
+                  [loading]="busy()" [disabled]="busy() || !categoryId || !necessity || !amount || !dueOn" />
       </div>
     </form>
   </p-card>
@@ -66,7 +66,8 @@
     <p-card header="Vencimentos e atrasadas">
       <div class="filter">
         <label for="payables-month">Mês de vencimento</label>
-        <app-date-field inputId="payables-month" name="month" [month]="true" [(ngModel)]="month" />
+        <app-month-navigation inputId="payables-month" [month]="month"
+                              (monthChange)="changeMonth($event)" />
         <p-button label="Consultar" severity="secondary" [disabled]="!month || loading()"
                   (onClick)="load()" />
       </div>
@@ -79,7 +80,8 @@
       } @else if (!payables().length) {
         <p class="empty">Nenhuma conta neste mês nem atrasada. Cadastre uma acima para começar.</p>
       } @else {
-        <ul class="simple-list">
+        <ul class="simple-list scroll-area payable-list" tabindex="0"
+            aria-label="Vencimentos e contas atrasadas">
           @for (payable of payables(); track payable.id) {
             <li class="payable-row">
               <span class="list-main">
@@ -130,8 +132,10 @@
             </select>
             <label for="payment-date">Data em que pagou</label>
             <app-date-field inputId="payment-date" name="paidOn" [(ngModel)]="paidOn" required />
-            <p-button type="submit" label="Registrar pagamento integral"
-                      [loading]="busy()" [disabled]="busy() || !walletId || !paidOn" />
+            <div class="form-actions">
+              <p-button type="submit" label="Registrar pagamento integral"
+                        [loading]="busy()" [disabled]="busy() || !walletId || !paidOn" />
+            </div>
           </form>
         }
         <h3>Histórico de pagamentos</h3>
@@ -158,8 +162,10 @@
                     <label [for]="'reverse-reason-' + payment.id">Motivo da correção</label>
                     <input pInputText [id]="'reverse-reason-' + payment.id"
                            [name]="'reason-' + payment.id" [(ngModel)]="reversalReason" maxlength="255" />
-                    <p-button label="Estornar registro" severity="danger"
-                              [disabled]="busy() || !reversalReason.trim()" (onClick)="reverse(payment)" />
+                    <div class="form-actions">
+                      <p-button label="Estornar registro" severity="danger"
+                                [disabled]="busy() || !reversalReason.trim()" (onClick)="reverse(payment)" />
+                    </div>
                   </div>
                 }
               </li>

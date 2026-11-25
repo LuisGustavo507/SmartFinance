@@ -20,8 +20,8 @@
   </div>
   <div>
     <label for="statement-month">Mês de referência</label>
-    <app-date-field inputId="statement-month" name="statement-month" [month]="true"
-                    [(ngModel)]="store.statementMonth" (ngModelChange)="loadStatements()" />
+    <app-month-navigation inputId="statement-month" [month]="store.statementMonth"
+                          (monthChange)="changeMonth($event)" />
   </div>
 </div>
 
@@ -41,12 +41,18 @@
   <p-card><p class="empty">Selecione um cartão para consultar a fatura do mês.</p></p-card>
 } @else if (selectedStatement(); as statement) {
   <p-card [header]="'Fatura de ' + store.cardLabel(statement.cardId)">
-    <p class="statement-period">
-      {{ monthLabel(store.statementMonth) }} ·
-      <span class="badge" [class.inactive]="statement.status !== 'ABERTA'">
-        {{ statusLabel(statement.status) }}
-      </span>
-    </p>
+    <div class="statement-overview">
+      <p class="statement-period">
+        {{ monthLabel(store.statementMonth) }} ·
+        <span class="badge" [class.inactive]="statement.status !== 'ABERTA'">
+          {{ statusLabel(statement.status) }}
+        </span>
+      </p>
+      <p class="statement-total">
+        <span>Total de gastos da fatura</span>
+        <strong>{{ money(statement.totalAmount) }}</strong>
+      </p>
+    </div>
 
     <section aria-label="Gastos da fatura">
       <h2 class="statement-heading">
@@ -56,54 +62,31 @@
       @if (activeInstallments(statement).length === 0) {
         <p class="empty">Nenhum gasto ativo nesta fatura.</p>
       } @else {
-        <ul class="simple-list statement-list">
+        <ul class="simple-list statement-list scroll-area statement-installments"
+            tabindex="0" aria-label="Gastos ativos da fatura">
           @for (installment of activeInstallments(statement); track installment.id) {
             <li>
-              <span class="list-date">{{ installment.number }}ª</span>
-              <span class="list-main">
-                {{ installment.description || 'Sem descrição' }}
-                <small class="muted">· {{ installment.categoryName }}</small>
-                @if (installment.entityName) {
-                  <small class="muted">· {{ installment.entityName }}</small>
-                }
-                <div class="statement-actions">
-                  <p-button label="Estornar compra" severity="secondary" [text]="true"
-                            [disabled]="store.busy()"
-                            (onClick)="store.reverseCardPurchase(installment.purchaseId)" />
-                  <p-button label="Entidade" severity="secondary" [text]="true"
-                            [disabled]="store.busy()"
-                            (onClick)="store.startPurchaseEntityEdit(installment)" />
-                </div>
-                @if (store.editingPurchaseEntityId === installment.purchaseId) {
-                  <form (ngSubmit)="store.savePurchaseEntity()" class="form">
-                    <label [for]="'purchase-entity-' + installment.purchaseId">Entidade da compra</label>
-                    <select [id]="'purchase-entity-' + installment.purchaseId"
-                            [name]="'purchase-entity-' + installment.purchaseId"
-                            [(ngModel)]="store.purchaseEntitySelection">
-                      <option [ngValue]="null">Sem entidade</option>
-                      @for (entity of store.counterparties(); track entity.id) {
-                        @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
-                      }
-                    </select>
-                    <div class="edit-actions">
-                      <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
-                      <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                                (onClick)="store.editingPurchaseEntityId = null" />
-                    </div>
-                  </form>
-                }
-              </span>
-              <span class="list-amount">{{ money(installment.amount) }}</span>
+              <button type="button" class="statement-row-trigger" [disabled]="store.busy()"
+                      [attr.aria-label]="'Detalhes da parcela: ' +
+                        (installment.description || 'Sem descrição') + ', ' + money(installment.amount)"
+                      (click)="openInstallment(installment)">
+                <span class="list-date">{{ installment.number }}ª</span>
+                <span class="list-main">
+                  {{ installment.description || 'Sem descrição' }}
+                  <small class="muted">· {{ installment.categoryName }}</small>
+                  @if (installment.entityName) {
+                    <small class="muted">· {{ installment.entityName }}</small>
+                  }
+                </span>
+                <strong class="list-amount">{{ money(installment.amount) }}</strong>
+                <i class="pi pi-chevron-right statement-row-chevron" aria-hidden="true"></i>
+              </button>
             </li>
           }
         </ul>
       }
     </section>
 
-    <p class="statement-total">
-      <span>Total de gastos da fatura</span>
-      <strong>{{ money(statement.totalAmount) }}</strong>
-    </p>
     <p class="muted">
       Fechamento em {{ shortDate(statement.closingDate) }} ·
       vencimento em {{ shortDate(statement.dueDate) }}
@@ -125,36 +108,22 @@
           Cancelamentos antes do fechamento não entram no total. Estornos após o
           fechamento permanecem no total bruto e geram crédito para faturas futuras.
         </p>
-        <ul class="simple-list statement-list">
+        <ul id="statement-history" class="simple-list statement-list"
+            tabindex="0" aria-label="Lista de itens cancelados e estornados">
           @for (installment of historicalInstallments(statement); track installment.id) {
             <li>
-              <span class="list-date">{{ installment.number }}ª</span>
-              <span class="list-main">
-                {{ installment.description || 'Sem descrição' }} ·
-                {{ installment.status === 'CANCELADA' ? 'Cancelada' : 'Estornada' }}
-                <p-button label="Entidade" severity="secondary" [text]="true"
-                          [disabled]="store.busy()"
-                          (onClick)="store.startPurchaseEntityEdit(installment)" />
-                @if (store.editingPurchaseEntityId === installment.purchaseId) {
-                  <form (ngSubmit)="store.savePurchaseEntity()" class="form">
-                    <label [for]="'purchase-entity-' + installment.purchaseId">Entidade da compra</label>
-                    <select [id]="'purchase-entity-' + installment.purchaseId"
-                            [name]="'purchase-entity-' + installment.purchaseId"
-                            [(ngModel)]="store.purchaseEntitySelection">
-                      <option [ngValue]="null">Sem entidade</option>
-                      @for (entity of store.counterparties(); track entity.id) {
-                        @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
-                      }
-                    </select>
-                    <div class="edit-actions">
-                      <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
-                      <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                                (onClick)="store.editingPurchaseEntityId = null" />
-                    </div>
-                  </form>
-                }
-              </span>
-              <span class="list-amount">{{ money(installment.amount) }}</span>
+              <button type="button" class="statement-row-trigger" [disabled]="store.busy()"
+                      [attr.aria-label]="'Detalhes da parcela: ' +
+                        (installment.description || 'Sem descrição') + ', ' + money(installment.amount)"
+                      (click)="openInstallment(installment)">
+                <span class="list-date">{{ installment.number }}ª</span>
+                <span class="list-main">
+                  {{ installment.description || 'Sem descrição' }} ·
+                  {{ installment.status === 'CANCELADA' ? 'Cancelada' : 'Estornada' }}
+                </span>
+                <strong class="list-amount">{{ money(installment.amount) }}</strong>
+                <i class="pi pi-chevron-right statement-row-chevron" aria-hidden="true"></i>
+              </button>
             </li>
           }
         </ul>
@@ -176,10 +145,12 @@
           <label for="payment-date">Data do pagamento</label>
           <app-date-field inputId="payment-date" name="payment-date" [time]="true"
                           [(ngModel)]="store.paymentDateTime" required />
-          <p-button type="submit" label="Confirmar pagamento" [loading]="store.busy()"
-                    [disabled]="store.paymentWalletId === null || !store.paymentDateTime" />
-          <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                    (onClick)="store.paymentStatementId = null" />
+          <div class="form-actions">
+            <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                      (onClick)="store.paymentStatementId = null" />
+            <p-button type="submit" label="Confirmar pagamento" [loading]="store.busy()"
+                      [disabled]="store.paymentWalletId === null || !store.paymentDateTime" />
+          </div>
         </form>
       } @else {
         <p-button label="Pagar fatura" severity="secondary" [outlined]="true"
@@ -202,6 +173,48 @@
     <a routerLink="/lancamentos">Registrar uma compra</a>
   </p-card>
 }
+
+<app-maintenance-dialog #details dialogTitle="Detalhes da parcela" maxWidth="32rem"
+                        fallbackFocusSelector="#statement-history"
+                        [visible]="selectedInstallment !== null"
+                        [hasUnsavedChanges]="entityDirty" [busy]="store.busy()"
+                        (closeRequested)="closeInstallment()">
+  @if (selectedInstallment; as installment) {
+    <div class="installment-details">
+      <strong>{{ installment.description || 'Sem descrição' }}</strong>
+      <span class="muted">{{ installment.number }}ª parcela · {{ installment.categoryName }}</span>
+      <strong class="list-amount">{{ money(installment.amount) }}</strong>
+      @if (installment.status !== 'ATIVA') {
+        <span class="badge inactive">
+          {{ installment.status === 'CANCELADA' ? 'Cancelada' : 'Estornada' }}
+        </span>
+      }
+    </div>
+    @if (store.error()) { <p class="alert" role="alert">{{ store.error() }}</p> }
+    <form (ngSubmit)="saveEntity()" class="form">
+      <label for="statement-entity">Entidade da compra</label>
+      <select id="statement-entity" name="statement-entity"
+              [(ngModel)]="store.purchaseEntitySelection">
+        <option [ngValue]="null">Sem entidade</option>
+        @for (entity of entityChoices(installment); track entity.id) {
+          <option [ngValue]="entity.id">{{ entity.name }}{{ entity.active ? '' : ' (inativa)' }}</option>
+        }
+      </select>
+      <div class="form-actions">
+        <p-button type="button" label="Fechar" severity="secondary" [text]="true"
+                  (onClick)="details.requestClose()" />
+        <p-button type="submit" label="Salvar entidade" [loading]="store.busy()"
+                  [disabled]="store.busy() || !entityDirty()" />
+      </div>
+    </form>
+    @if (installment.status === 'ATIVA') {
+      <div class="record-operations">
+        <p-button label="Estornar compra inteira" severity="danger" [outlined]="true"
+                  [disabled]="store.busy()" (onClick)="reversePurchase()" />
+      </div>
+    }
+  }
+</app-maintenance-dialog>
 
 @if (!store.cardsLoading() && !store.cardsLoadFailed() &&
      store.statementCardId !== null && selectedCardCredits().length > 0) {

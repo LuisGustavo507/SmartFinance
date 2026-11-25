@@ -11,10 +11,11 @@ import { money, monthLabel, shortDate } from '../format';
 import { DateField } from '../date-field';
 import { MoneyField } from '../money-field';
 import { ActionConfirmation } from '../action-confirmation';
+import { MonthNavigation } from '../month-navigation';
 
 @Component({
   selector: 'app-payables-page',
-  imports: [FormsModule, ButtonModule, CardModule, InputTextModule, DateField, MoneyField],
+  imports: [FormsModule, ButtonModule, CardModule, InputTextModule, DateField, MoneyField, MonthNavigation],
   templateUrl: './payables-page.html',
   styleUrl: './payables-page.css'
 })
@@ -35,6 +36,8 @@ export class PayablesPage implements OnInit {
   readonly busy = signal(false);
   readonly error = signal('');
   readonly notice = signal('');
+  private loadRequest = 0;
+  private selectionRequest = 0;
   month = this.store.selectedMonth;
   categoryId: number | null = null;
   entityId: number | null = null;
@@ -51,35 +54,53 @@ export class PayablesPage implements OnInit {
     void this.load();
   }
 
+  changeMonth(month: string): void {
+    this.month = month;
+    ++this.selectionRequest;
+    this.selected.set(null);
+    this.payments.set([]);
+    void this.load();
+  }
+
   async load(): Promise<void> {
+    const request = ++this.loadRequest;
     this.loading.set(true);
     this.loadFailed.set(false);
     this.error.set('');
     try {
       const items = await firstValueFrom(this.api.payables(this.month));
+      if (request !== this.loadRequest) return;
       this.payables.set(items);
       if (this.selected()) {
         const selectedId = this.selected()!.id;
+        const selectionRequest = this.selectionRequest;
         this.paymentsLoading.set(true);
         const [detail, history] = await Promise.all([
           firstValueFrom(this.api.payable(selectedId)),
           firstValueFrom(this.api.payablePayments(selectedId))
         ]);
-        this.selected.set(detail);
-        this.payments.set(history);
-        this.paymentsLoadFailed.set(false);
+        if (request !== this.loadRequest) return;
+        if (selectionRequest === this.selectionRequest && this.selected()?.id === selectedId) {
+          this.selected.set(detail);
+          this.payments.set(history);
+          this.paymentsLoadFailed.set(false);
+        }
       }
     } catch (error) {
+      if (request !== this.loadRequest) return;
       this.loadFailed.set(true);
       if (this.paymentsLoading()) this.paymentsLoadFailed.set(true);
       this.error.set(this.message(error, 'Não foi possível carregar as contas a pagar.'));
     } finally {
-      this.loading.set(false);
-      this.paymentsLoading.set(false);
+      if (request === this.loadRequest) {
+        this.loading.set(false);
+        this.paymentsLoading.set(false);
+      }
     }
   }
 
   async select(payable: Payable): Promise<void> {
+    const request = ++this.selectionRequest;
     this.error.set('');
     this.notice.set('');
     this.selected.set(payable);
@@ -87,12 +108,14 @@ export class PayablesPage implements OnInit {
     this.paymentsLoading.set(true);
     this.paymentsLoadFailed.set(false);
     try {
-      this.payments.set(await firstValueFrom(this.api.payablePayments(payable.id)));
+      const history = await firstValueFrom(this.api.payablePayments(payable.id));
+      if (request === this.selectionRequest) this.payments.set(history);
     } catch (error) {
+      if (request !== this.selectionRequest) return;
       this.paymentsLoadFailed.set(true);
       this.error.set(this.message(error, 'Não foi possível carregar os pagamentos.'));
     } finally {
-      this.paymentsLoading.set(false);
+      if (request === this.selectionRequest) this.paymentsLoading.set(false);
     }
   }
 

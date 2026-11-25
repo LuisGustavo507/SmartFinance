@@ -211,4 +211,31 @@ describe('EntriesPage', () => {
     expect(page.querySelector('#entry-new-entity')).not.toBeNull();
     expect(page.textContent).toContain('Ou nova entidade');
   });
+
+  it('edits the entry entity in a dialog and keeps an inactive linked entity visible', async () => {
+    const fixture = TestBed.createComponent(EntriesPage);
+    const store = TestBed.inject(FinanceStore);
+    store.selectedMonth = '2099-01';
+    store.entries.set([{ ...entry, entityId: 9, entityName: 'Fornecedor antigo' }]);
+    store.counterparties.set([{ id: 9, ownerUserId: 1, name: 'Fornecedor antigo', active: false }]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const page = fixture.nativeElement as HTMLElement;
+    const trigger = [...page.querySelectorAll('button')]
+      .find(button => button.textContent?.trim() === 'Entidade') as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(store.editingEntryEntityId).toBe(11);
+    const dialog = document.querySelector('.p-dialog') as HTMLElement;
+    expect(dialog.textContent).toContain('Entidade do lançamento');
+    const select = document.querySelector('#entry-entity-edit') as HTMLSelectElement;
+    expect([...select.options].map(option => option.textContent)).toEqual([
+      'Sem entidade', 'Fornecedor antigo (inativa)'
+    ]);
+    expect(select.selectedIndex).toBe(1);
+  });
 });
