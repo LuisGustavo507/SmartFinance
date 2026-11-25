@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { afterNextRender, Component, inject, Injector, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -26,6 +26,7 @@ import { ActionConfirmation } from '../action-confirmation';
 export class EntriesPage {
   readonly store = inject(FinanceStore);
   private readonly confirmation = inject(ActionConfirmation);
+  private readonly injector = inject(Injector);
   readonly money = money;
   readonly monthLabel = monthLabel;
   readonly shortDate = shortDate;
@@ -33,7 +34,11 @@ export class EntriesPage {
   readonly numberIsInteger = Number.isInteger;
   attempted = false;
   selectedEntryId: number | null = null;
-  detailMode: 'view' | 'edit' | 'entity' = 'view';
+  readonly detailMode = signal<'view' | 'edit' | 'entity' | 'series'>('view');
+  readonly modalSeries = signal<Entry[]>([]);
+  modalSeriesId: number | null = null;
+  seriesOriginEntryId: number | null = null;
+  readonly seriesLoading = signal(false);
   entryActionNotice = '';
 
   changeMonth(month: string): void {
@@ -70,6 +75,7 @@ export class EntriesPage {
 
   selectedEntry(): Entry | undefined {
     return this.store.entries().find(entry => entry.id === this.selectedEntryId)
+      ?? this.modalSeries().find(entry => entry.id === this.selectedEntryId)
       ?? this.store.selectedSeries().find(entry => entry.id === this.selectedEntryId);
   }
 
@@ -79,21 +85,25 @@ export class EntriesPage {
     this.store.notice.set('');
     this.entryActionNotice = '';
     this.selectedEntryId = entry.id;
-    this.detailMode = 'view';
+    this.detailMode.set('view');
+    if (this.modalSeriesId === entry.seriesId) this.focusModal('.entry-back-to-series');
   }
 
   closeEntry(): void {
     this.store.cancelEntryEdit();
     this.store.editingEntryEntityId = null;
     this.selectedEntryId = null;
-    this.detailMode = 'view';
+    this.detailMode.set('view');
+    this.modalSeriesId = null;
+    this.seriesOriginEntryId = null;
+    this.modalSeries.set([]);
   }
 
   readonly entryDetailsDirty = (): boolean => {
     const entry = this.selectedEntry();
     if (!entry) return false;
-    if (this.detailMode === 'entity') return this.entryEntityDirty();
-    if (this.detailMode !== 'edit') return false;
+    if (this.detailMode() === 'entity') return this.entryEntityDirty();
+    if (this.detailMode() !== 'edit') return false;
     return this.store.editWalletId !== entry.walletId
       || this.store.editCategoryId !== entry.categoryId
       || this.store.editNecessity !== entry.necessity
@@ -103,6 +113,23 @@ export class EntriesPage {
       || this.store.editExpectedOn !== (entry.occurredOn ?? entry.expectedOn);
   };
 
+  modalOccurrencesLabel(): string {
+    const count = this.modalSeries().length;
+    return count === 1 ? '1 ocorrência gerada' : `${count} ocorrências geradas`;
+  }
+
+  backToSeries(): void {
+    this.store.error.set('');
+    this.detailMode.set('series');
+    this.focusModal(`.modal-series-list [data-entry-id="${this.selectedEntryId}"]`);
+  }
+
+  backToOriginalEntry(): void {
+    this.selectedEntryId = this.seriesOriginEntryId;
+    this.detailMode.set('view');
+    this.focusModal('.entry-back-to-series');
+  }
+
   async backToDetails(): Promise<void> {
     if (this.store.busy()) return;
     if (this.entryDetailsDirty() && !await this.confirmation.ask('Descartar alterações',
@@ -110,18 +137,18 @@ export class EntriesPage {
     this.store.cancelEntryEdit();
     this.store.editingEntryEntityId = null;
     this.store.error.set('');
-    this.detailMode = 'view';
+    this.detailMode.set('view');
   }
 
   startEdit(entry: Entry): void {
     this.store.startEditEntry(entry);
-    if (this.store.editingEntryId() === entry.id) this.detailMode = 'edit';
+    if (this.store.editingEntryId() === entry.id) this.detailMode.set('edit');
   }
 
   async saveEdit(scope: 'single' | 'future'): Promise<void> {
     await this.store.saveEntryEdit(scope);
     if (this.store.editingEntryId() === null) {
-      this.detailMode = 'view';
+      this.detailMode.set('view');
       if (!this.selectedEntry()) {
         this.entryActionNotice = 'Lançamento atualizado.';
         this.closeEntry();
@@ -138,8 +165,21 @@ export class EntriesPage {
   }
 
   async openEntrySeries(id: number): Promise<void> {
-    await this.openSeries(id);
-    if (this.store.selectedSeriesId() === id) this.closeEntry();
+    if (this.seriesLoading()) return;
+    const originEntryId = this.selectedEntryId;
+    this.seriesLoading.set(true);
+    try {
+      const occurrences = await this.store.fetchSeries(id);
+      if (occurrences && this.selectedEntryId === originEntryId && originEntryId !== null) {
+        this.seriesOriginEntryId = originEntryId;
+        this.modalSeriesId = id;
+        this.modalSeries.set(occurrences);
+        this.detailMode.set('series');
+        this.focusModal('.modal-series-list .entry-row-trigger');
+      }
+    } finally {
+      this.seriesLoading.set(false);
+    }
   }
 
   editDisabled(): boolean {
@@ -162,16 +202,21 @@ export class EntriesPage {
 
   openEntryEntityEditor(entry: Entry): void {
     this.store.startEntryEntityEdit(entry);
-    if (this.store.editingEntryEntityId === entry.id) this.detailMode = 'entity';
+    if (this.store.editingEntryEntityId === entry.id) this.detailMode.set('entity');
   }
 
   async saveEntryEntity(): Promise<void> {
     await this.store.saveEntryEntity();
-    if (this.store.editingEntryEntityId === null) this.detailMode = 'view';
+    if (this.store.editingEntryEntityId === null) this.detailMode.set('view');
   }
 
   private focusSeries(): void {
     this.scrollTo('series-details');
+  }
+
+  private focusModal(selector: string): void {
+    afterNextRender(() => document.querySelector<HTMLElement>(`.p-dialog ${selector}`)?.focus(),
+      { injector: this.injector });
   }
 
   private scrollTo(id: string): void {

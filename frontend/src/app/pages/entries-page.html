@@ -261,7 +261,43 @@
                         [hasUnsavedChanges]="entryDetailsDirty" [busy]="store.busy()"
                         (closeRequested)="closeEntry()">
   @if (selectedEntry(); as entry) {
-    @if (detailMode === 'view') {
+    @if (detailMode() === 'series') {
+      <section aria-label="Ocorrências da série">
+        <h3>Série {{ modalSeriesId }}</h3>
+        <p>{{ modalOccurrencesLabel() }}. Cada lançamento do mês atual ou futuro pode ser corrigido individualmente.</p>
+        <ul class="simple-list modal-series-list" tabindex="0" aria-label="Ocorrências da série">
+          @for (occurrence of modalSeries(); track occurrence.id) {
+            <li class="entry-list-item">
+              <button type="button" class="entry-row-trigger" [disabled]="store.busy()"
+                      [attr.data-entry-id]="occurrence.id"
+                      [attr.aria-label]="'Detalhes do lançamento: ' +
+                        (occurrence.description || 'Sem descrição') + ', ' + money(occurrence.amount)"
+                      (click)="openEntry(occurrence, $event.currentTarget)">
+                <span class="list-date">{{ occurrence.occurrenceNumber }}/{{ occurrence.totalOccurrences }}</span>
+                <span class="list-main">
+                  {{ shortDate(occurrence.expectedOn ?? occurrence.occurredOn) }} ·
+                  {{ occurrence.description || 'Sem descrição' }}
+                  @if (occurrence.kind === 'DESPESA') {
+                    <small class="muted">· {{ necessityLabel(occurrence.necessity) }}</small>
+                  }
+                  <small class="tag">{{ occurrence.status }}</small>
+                </span>
+                <strong class="list-amount">{{ money(occurrence.amount) }}</strong>
+                <i class="pi pi-chevron-right" aria-hidden="true"></i>
+              </button>
+            </li>
+          }
+        </ul>
+        <div class="form-actions">
+          <p-button label="Voltar ao lançamento" severity="secondary" [text]="true"
+                    (onClick)="backToOriginalEntry()" />
+        </div>
+      </section>
+    } @else if (detailMode() === 'view') {
+      @if (modalSeriesId === entry.seriesId) {
+        <p-button styleClass="entry-back-to-series" label="Voltar à série" severity="secondary" [text]="true"
+                  (onClick)="backToSeries()" />
+      }
       <div class="entry-details">
         <strong>{{ entry.description || 'Sem descrição' }}</strong>
         <span>{{ shortDate(entry.occurredOn ?? entry.expectedOn) }} ·
@@ -277,9 +313,10 @@
       </div>
       @if (store.notice()) { <p class="notice" role="status">{{ store.notice() }}</p> }
       @if (store.error()) { <p class="alert" role="alert">{{ store.error() }}</p> }
-      @if (entry.seriesId) {
+      @if (entry.seriesId && modalSeriesId !== entry.seriesId) {
         <p-button label="Ver série" severity="secondary" [text]="true"
-                  (onClick)="openEntrySeries(entry.seriesId)" />
+                   [loading]="seriesLoading()" [disabled]="seriesLoading()"
+                   (onClick)="openEntrySeries(entry.seriesId)" />
       }
       @if (store.entryCanChange(entry)) {
         <div class="record-operations">
@@ -293,7 +330,7 @@
       } @else if (entry.status !== 'CANCELADO') {
         <p class="muted">O mês deste lançamento já foi encerrado. Alterações não estão disponíveis.</p>
       }
-    } @else if (detailMode === 'edit') {
+    } @else if (detailMode() === 'edit') {
       <p class="muted">
         Lançamentos do mês atual podem ser corrigidos até o fim do mês.
         @if (store.editingSeriesId !== null && store.editingEntryStatus === 'PREVISTO') {

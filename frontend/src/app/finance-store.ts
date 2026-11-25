@@ -802,13 +802,20 @@ export class FinanceStore {
   }
 
   async showSeries(id: number): Promise<void> {
-    this.error.set('');
-    try {
-      const occurrences = await firstValueFrom(this.api.series(id));
+    const occurrences = await this.fetchSeries(id);
+    if (occurrences) {
       this.selectedSeriesId.set(id);
       this.selectedSeries.set(occurrences);
+    }
+  }
+
+  async fetchSeries(id: number): Promise<Entry[] | null> {
+    this.error.set('');
+    try {
+      return await firstValueFrom(this.api.series(id));
     } catch (error) {
       this.error.set(this.message(error, 'Não foi possível consultar a série.'));
+      return null;
     }
   }
 

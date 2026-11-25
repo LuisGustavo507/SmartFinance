@@ -24,6 +24,20 @@
 .entry-row-trigger .pi-chevron-right { grid-column: 2; color: var(--sf-link); }
 .entry-details { display: grid; gap: .45rem; margin-bottom: 1rem; }
 .entry-details .list-amount { font-size: 1.25rem; }
+.modal-series-list {
+  max-height: min(15rem, 35dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: .35rem;
+  border-block: 1px solid var(--sf-border-soft);
+}
+.modal-series-list .entry-row-trigger {
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+}
+.modal-series-list .entry-row-trigger .list-date { grid-column: 1; }
+.modal-series-list .entry-row-trigger .list-main { grid-column: 2; }
+.modal-series-list .entry-row-trigger .list-amount { grid-column: 3; }
+.modal-series-list .entry-row-trigger .pi-chevron-right { display: none; }
 @media (min-width: 700px) {
   .entry-row-trigger { grid-template-columns: 5.5rem minmax(0, 1fr) auto auto; }
   .entry-row-trigger .list-date { grid-column: 1; }

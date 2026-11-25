@@ -169,7 +169,12 @@ describe('EntriesPage', () => {
     expect(compiled.textContent).not.toContain('Resumo de janeiro de 2099');
     expect(compiled.textContent).toMatch(/R\$\s40,00/);
 
-    const showSeries = vi.spyOn(store, 'showSeries').mockResolvedValue(undefined);
+    const occurrences = [
+      entry,
+      { ...entry, id: 12, status: 'CANCELADO' as const, occurrenceNumber: 2,
+        expectedOn: '2099-02-28', referenceMonth: '2099-02-01' }
+    ];
+    const fetchSeries = vi.spyOn(store, 'fetchSeries').mockResolvedValue(occurrences);
     (compiled.querySelector('#entry-list .entry-row-trigger') as HTMLButtonElement).click();
     fixture.detectChanges();
     await fixture.whenStable();
@@ -177,25 +182,21 @@ describe('EntriesPage', () => {
     const button = [...document.querySelectorAll('.p-dialog button')]
       .find(candidate => candidate.textContent?.includes('Ver série')) as HTMLButtonElement;
     button.click();
-    expect(showSeries).toHaveBeenCalledWith(8);
+    expect(fetchSeries).toHaveBeenCalledWith(8);
     await fixture.whenStable();
     fixture.detectChanges();
 
-    store.selectedSeriesId.set(8);
-    store.selectedSeries.set([
-      entry,
-      { ...entry, id: 12, status: 'CANCELADO', occurrenceNumber: 2,
-        expectedOn: '2099-02-28', referenceMonth: '2099-02-01' }
-    ]);
-    fixture.detectChanges();
-    expect(compiled.textContent).toContain('Série 8');
-    expect(compiled.textContent).toContain('2 ocorrências geradas');
-    expect(compiled.textContent).toContain('CANCELADO');
-    expect(compiled.querySelector('#series-details .entry-row-trigger')).not.toBeNull();
-    (compiled.querySelector('#series-details .entry-row-trigger') as HTMLButtonElement).click();
+    const dialog = document.querySelector('.p-dialog') as HTMLElement;
+    expect(dialog.textContent).toContain('Série 8');
+    expect(dialog.textContent).toContain('2 ocorrências geradas');
+    expect(dialog.textContent).toContain('CANCELADO');
+    expect(compiled.querySelector('#series-details')).toBeNull();
+    expect(dialog.querySelector('.modal-series-list')).not.toBeNull();
+    (dialog.querySelector('.modal-series-list .entry-row-trigger') as HTMLButtonElement).click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
+    expect(dialog.textContent).toContain('Voltar à série');
     const edit = [...document.querySelectorAll('.p-dialog button')]
       .find(candidate => candidate.textContent?.trim() === 'Editar') as HTMLButtonElement;
     edit.click();
@@ -222,10 +223,42 @@ describe('EntriesPage', () => {
     fixture.detectChanges();
     expect(document.querySelector('#edit-description')).toBeNull();
 
-    store.selectedSeriesId.set(null);
-    store.selectedSeries.set([]);
+    const backToSeries = [...dialog.querySelectorAll('button')]
+      .find(candidate => candidate.textContent?.trim() === 'Voltar à série') as HTMLButtonElement;
+    backToSeries.click();
     fixture.detectChanges();
-    expect(compiled.textContent).not.toContain('Série 8');
+    expect(dialog.textContent).toContain('2 ocorrências geradas');
+    const backToEntry = [...dialog.querySelectorAll('button')]
+      .find(candidate => candidate.textContent?.trim() === 'Voltar ao lançamento') as HTMLButtonElement;
+    backToEntry.click();
+    fixture.detectChanges();
+    expect(dialog.textContent).toContain('31/01/2099');
+    expect(dialog.textContent).not.toContain('28/02/2099');
+    expect(compiled.querySelector('#series-details')).toBeNull();
+  });
+
+  it('keeps the details open with an error when the series cannot be loaded', async () => {
+    const fixture = TestBed.createComponent(EntriesPage);
+    const store = TestBed.inject(FinanceStore);
+    store.entries.set([entry]);
+    vi.spyOn(store, 'fetchSeries').mockImplementation(async () => {
+      store.error.set('Não foi possível consultar a série.');
+      return null;
+    });
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector('#entry-list .entry-row-trigger') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const dialog = document.querySelector('.p-dialog') as HTMLElement;
+    const showSeries = [...dialog.querySelectorAll('button')]
+      .find(candidate => candidate.textContent?.trim() === 'Ver série') as HTMLButtonElement;
+    showSeries.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(dialog.textContent).toContain('Não foi possível consultar a série.');
+    expect(dialog.querySelector('.modal-series-list')).toBeNull();
+    expect(showSeries.disabled).toBe(false);
   });
 
   it('does not offer necessity for income categories', () => {
