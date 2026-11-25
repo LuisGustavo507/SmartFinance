@@ -161,7 +161,80 @@ class EntryEditingIntegrationTests {
                                 LocalDate.now(ZoneOffset.UTC).minusDays(1))))
                 .andExpect(status().isCreated()).andReturn());
         mvc.perform(update(csrf, owner, realizedId, walletId, expenseCategory,
-                        "Tentativa", "10.00", first, null))
+                         "Tentativa", "10.00", first, null))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void realizedEntryCanBeCorrectedAndCancelledInCurrentMonthButClosedMonthsStayLocked()
+            throws Exception {
+        Cookie csrf = csrf();
+        register(csrf, "edit-realized-window@example.test");
+        Cookie owner = login(csrf, "edit-realized-window@example.test");
+        int walletA = wallet(csrf, owner);
+        int walletB = wallet(csrf, owner, "Outra carteira");
+        int expense = category(csrf, owner, "Mercado do mês", "DESPESA");
+        LocalDate today = LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
+        int id = id(mvc.perform(post("/api/entries").cookie(csrf, owner)
+                        .header("X-XSRF-TOKEN", csrf.getValue())
+                        .contentType("application/json").content("""
+                                {"walletId":%d,"categoryId":%d,"description":"Compra errada",
+                                 "amount":10,"occurredOn":"%s","necessity":"NEUTRA"}
+                                """.formatted(walletA, expense, today)))
+                .andExpect(status().isCreated()).andReturn());
+        mvc.perform(put("/api/entries/{id}", id).cookie(csrf, owner)
+                        .header("X-XSRF-TOKEN", csrf.getValue())
+                        .contentType("application/json").content("""
+                                {"walletId":%d,"categoryId":%d,"description":"Compra corrigida",
+                                 "amount":25,"occurredOn":"%s","necessity":"NEUTRA"}
+                                """.formatted(walletB, expense, today)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("EFETIVADO"))
+                .andExpect(jsonPath("$.amount").value(25));
+        mvc.perform(get("/api/wallets/{id}", walletA).cookie(owner))
+                .andExpect(jsonPath("$.estimatedBalance").value(100));
+        mvc.perform(get("/api/wallets/{id}", walletB).cookie(owner))
+                .andExpect(jsonPath("$.estimatedBalance").value(75));
+        mvc.perform(get("/api/monthly-summary").param("month", today.toString().substring(0, 7))
+                        .cookie(owner))
+                .andExpect(jsonPath("$.realizedExpenses").value(25));
+        mvc.perform(post("/api/entries/{id}/cancel", id).cookie(csrf, owner)
+                        .header("X-XSRF-TOKEN", csrf.getValue()))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/wallets/{id}", walletB).cookie(owner))
+                .andExpect(jsonPath("$.estimatedBalance").value(100));
+        mvc.perform(get("/api/monthly-summary").param("month", today.toString().substring(0, 7))
+                        .cookie(owner))
+                .andExpect(jsonPath("$.realizedExpenses").value(0));
+        assertThat(jdbc.queryForObject("SELECT status FROM lancamento_financeiro WHERE id = ?",
+                String.class, id)).isEqualTo("CANCELADO");
+        mvc.perform(post("/api/entries/{id}/cancel", id).cookie(csrf, owner)
+                        .header("X-XSRF-TOKEN", csrf.getValue()))
+                .andExpect(status().isConflict());
+
+        int oldId = id(mvc.perform(post("/api/entries").cookie(csrf, owner)
+                        .header("X-XSRF-TOKEN", csrf.getValue())
+                        .contentType("application/json").content("""
+                                {"walletId":%d,"categoryId":%d,"description":"Mês encerrado",
+                                 "amount":12,"occurredOn":"%s","necessity":"NEUTRA"}
+                                """.formatted(walletA, expense, today)))
+                .andExpect(status().isCreated()).andReturn());
+        LocalDate oldMonth = today.withDayOfMonth(1).minusDays(1);
+        jdbc.update("UPDATE lancamento_financeiro SET data_ocorrencia = ?, mes_referencia = ? WHERE id = ?",
+                oldMonth, oldMonth.withDayOfMonth(1), oldId);
+        mvc.perform(put("/api/entries/{id}", oldId).cookie(csrf, owner)
+                        .header("X-XSRF-TOKEN", csrf.getValue())
+                        .contentType("application/json").content("""
+                                {"walletId":%d,"categoryId":%d,"amount":20,
+                                 "occurredOn":"%s","necessity":"NEUTRA"}
+                                """.formatted(walletA, expense, today)))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/entries/{id}/cancel", oldId).cookie(csrf, owner)
+                        .header("X-XSRF-TOKEN", csrf.getValue()))
+                .andExpect(status().isConflict());
+        mvc.perform(put("/api/entries/{id}/entity", oldId).cookie(csrf, owner)
+                        .header("X-XSRF-TOKEN", csrf.getValue())
+                        .contentType("application/json").content("{\"entityId\":null}"))
                 .andExpect(status().isConflict());
     }
 
@@ -338,13 +411,17 @@ class EntryEditingIntegrationTests {
     }
 
     private int wallet(Cookie csrf, Cookie access) throws Exception {
+        return wallet(csrf, access, "Dinheiro editável");
+    }
+
+    private int wallet(Cookie csrf, Cookie access, String name) throws Exception {
         return id(mvc.perform(post("/api/wallets")
                         .cookie(csrf, access).header("X-XSRF-TOKEN", csrf.getValue())
                         .contentType("application/json")
                         .content("""
-                                {"name":"Dinheiro editável","initialBalance":100.00,
-                                 "initialBalanceDate":"2020-01-01"}
-                                """))
+                                {"name":"%s","initialBalance":100.00,
+                                  "initialBalanceDate":"2020-01-01"}
+                                """.formatted(name)))
                 .andExpect(status().isCreated()).andReturn());
     }
 

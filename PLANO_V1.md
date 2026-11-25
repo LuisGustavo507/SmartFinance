@@ -24,13 +24,15 @@ entre especificação e implementação devem ser explicitadas antes de corrigir
 - A revisão **visual final** fica para depois da implementação funcional da
   V1, conforme decisão do usuário. Testes automáticos e verificação funcional
   em navegador continuam necessários em cada fatia.
-- Fora desta V1: conciliação/integração bancária, edição dos valores ou da
+- Fora desta V1 original: conciliação/integração bancária, edição dos valores ou da
   conta de lançamentos efetivados, estorno de lançamentos comuns, pagamentos
   parciais de fatura, devolução parcial, voz, múltiplas moedas, contabilidade
   formal e projeção futura de saldo por conta. Edição/exclusão de carteira e
   renomeação de categoria não eram requisitos expressos no plano original;
   a solicitação posterior em `Solicitacao de alteracoes.md` autorizou a
   edição de nome, a alteração de natureza e a exclusão sem vínculos.
+  Posteriormente, lançamentos efetivados e previstos passaram a poder ser
+  editados/cancelados até o fim do mês de referência (ver README).
 
 ## Base já entregue
 
@@ -93,6 +95,10 @@ efetivado e compra mesmo após fechamento; não reabrir lançamentos/faturas,
 alterar valores, datas, conta, categoria, parcelas nem saldo. Entidade inativa
 exige reativação para nova associação. Cobrir dono, histórico, séries,
 faturas e interface.
+
+**Regra posterior prevalecente:** para lançamentos, inclusive a correção isolada
+de entidade fica bloqueada depois do fim do mês de referência. Compras de
+cartão mantêm sua regra própria.
 
 **Entregue:** `PUT /api/entries/{id}/entity` (um lançamento) e
 `PUT /api/card-purchases/{id}/entity` (a compra inteira, todas as

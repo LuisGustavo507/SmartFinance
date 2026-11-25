@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { firstValueFrom } from 'rxjs';
 import { ActionConfirmation } from './action-confirmation';
+import { money } from './format';
 import { Api, CardInstallment, CardPurchase, CardStatement, Category, CategoryKind, Counterparty, CreditCard, Entry, EntityPeriodReport, Institution, MonthlyPoint, MonthlySummary, Necessity, Profile, ReversalCredit, Transfer, Wallet, WalletType } from './api';
 
 @Injectable({ providedIn: 'root' })
@@ -90,11 +91,24 @@ export class FinanceStore {
   editingPurchaseEntityId: number | null = null;
   purchaseEntitySelection: number | null = null;
   editingEntryKind: CategoryKind | null = null;
+  editingEntryStatus: 'PREVISTO' | 'EFETIVADO' | null = null;
   editingEntryUnclassified = false;
   editEntityId: number | null = null;
   editDescription = '';
   editAmount: number | null = null;
   editExpectedOn = '';
+  currentBusinessDate(): string {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(new Date());
+    const part = (type: string) => parts.find(item => item.type === type)!.value;
+    return `${part('year')}-${part('month')}-${part('day')}`;
+  }
+
+  entryCanChange(entry: Entry): boolean {
+    return entry.status !== 'CANCELADO'
+      && entry.referenceMonth.slice(0, 7) >= this.currentBusinessDate().slice(0, 7);
+  }
   readonly minimumExpectedDate = (() => {
     const date = new Date();
     date.setUTCDate(date.getUTCDate() + 1);
@@ -599,7 +613,7 @@ export class FinanceStore {
   }
 
   startEditEntry(entry: Entry): void {
-    if (entry.status !== 'PREVISTO') return;
+    if (!this.entryCanChange(entry)) return;
     this.error.set('');
     this.notice.set('');
     this.editingEntryId.set(entry.id);
@@ -609,11 +623,12 @@ export class FinanceStore {
     this.editCategoryId = entry.categoryId;
     this.editNecessity = entry.necessity ?? null;
     this.editingEntryKind = entry.kind;
+    this.editingEntryStatus = entry.status as 'PREVISTO' | 'EFETIVADO';
     this.editingEntryUnclassified = entry.kind === 'DESPESA' && entry.necessity == null;
     this.editEntityId = entry.entityId;
     this.editDescription = entry.description;
     this.editAmount = entry.amount;
-    this.editExpectedOn = entry.expectedOn ?? '';
+    this.editExpectedOn = entry.occurredOn ?? entry.expectedOn ?? '';
   }
 
   cancelEntryEdit(): void {
@@ -635,8 +650,15 @@ export class FinanceStore {
       this.error.set('Classifique a necessidade da despesa.');
       return;
     }
+    if (this.editingEntryStatus === 'EFETIVADO'
+      && (this.editExpectedOn > this.currentBusinessDate()
+        || this.editExpectedOn.slice(0, 7) < this.currentBusinessDate().slice(0, 7))) {
+      this.error.set('A data efetiva deve estar entre o início do mês atual e hoje.');
+      return;
+    }
     const future = scope === 'future';
-    if (future && (this.editingSeriesId === null || this.editingOccurrenceNumber === null)) {
+    if (future && (this.editingEntryStatus !== 'PREVISTO'
+      || this.editingSeriesId === null || this.editingOccurrenceNumber === null)) {
       this.error.set('Esta ocorrência não pertence a uma série.');
       return;
     }
@@ -652,18 +674,22 @@ export class FinanceStore {
       } else {
         await firstValueFrom(this.api.updateEntry(id, this.editWalletId,
           this.editCategoryId, this.editDescription, this.editAmount,
-           this.editExpectedOn, this.editEntityId,
-           this.editCategoryIsExpense() ? this.editNecessity : null));
+          this.editExpectedOn, this.editingEntryStatus!, this.editEntityId,
+          this.editCategoryIsExpense() ? this.editNecessity : null));
         this.notice.set('Lançamento atualizado.');
       }
+      const wasRealized = this.editingEntryStatus === 'EFETIVADO';
       this.clearEntryEdit();
       await this.loadEntries();
+      if (wasRealized) {
+        this.wallets.set(await firstValueFrom(this.api.wallets()));
+      }
       if (this.selectedSeriesId() !== null) {
         await this.showSeries(this.selectedSeriesId()!);
       }
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 409) {
-        this.error.set('Somente lançamentos previstos podem ser editados.');
+        this.error.set('Este lançamento não pode mais ser editado: foi cancelado ou seu mês já terminou.');
       } else {
         this.error.set(this.message(error, 'Não foi possível editar o lançamento.'));
       }
@@ -680,6 +706,7 @@ export class FinanceStore {
     this.editCategoryId = null;
     this.editNecessity = null;
     this.editingEntryKind = null;
+    this.editingEntryStatus = null;
     this.editingEntryUnclassified = false;
     this.editEntityId = null;
     this.editDescription = '';
@@ -688,6 +715,7 @@ export class FinanceStore {
   }
 
   startEntryEntityEdit(entry: Entry): void {
+    if (!this.entryCanChange(entry)) return;
     this.error.set('');
     this.editingEntryEntityId = entry.id;
     this.entryEntitySelection = entry.entityId;
@@ -738,20 +766,33 @@ export class FinanceStore {
     }
   }
 
-  async cancelEntry(id: number): Promise<void> {
+  async cancelEntry(entry: Entry): Promise<void> {
+    if (this.busy() || !this.entryCanChange(entry)) return;
+    const detail = `${entry.description || 'Sem descrição'} · ${money(entry.amount)}`;
+    const impact = entry.status === 'EFETIVADO'
+      ? 'O valor deixará de compor o saldo da carteira e os resultados do mês.'
+      : 'A previsão deixará de compor o resultado projetado.';
+    if (!await this.confirmation.ask('Cancelar lançamento',
+      `Cancelar “${detail}”? ${impact} O registro ficará guardado como cancelado.`,
+      'Cancelar lançamento')) return;
+    if (this.busy()) return;
     this.error.set('');
     this.busy.set(true);
     try {
       await firstValueFrom(this.api.csrf());
-      await firstValueFrom(this.api.cancelEntry(id));
-      if (this.editingEntryId() === id) this.clearEntryEdit();
+      await firstValueFrom(this.api.cancelEntry(entry.id));
+      if (this.editingEntryId() === entry.id) this.clearEntryEdit();
       await this.loadEntries();
+      if (entry.status === 'EFETIVADO') {
+        this.wallets.set(await firstValueFrom(this.api.wallets()));
+      }
+      this.notice.set('Lançamento cancelado.');
       if (this.selectedSeriesId() !== null) {
         await this.showSeries(this.selectedSeriesId()!);
       }
     } catch (error) {
       if (error instanceof HttpErrorResponse && error.status === 409) {
-        this.error.set('Este lançamento já foi efetivado ou cancelado.');
+        this.error.set('Este lançamento já foi cancelado ou seu mês já terminou.');
       } else {
         this.error.set(this.message(error, 'Não foi possível cancelar o lançamento.'));
       }

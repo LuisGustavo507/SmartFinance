@@ -85,7 +85,7 @@ class EntryController {
             Authentication authentication) {
         int ownerId = ((RegisteredUser) authentication.getPrincipal()).id();
         return entries.update(ownerId, id, request.walletId(), request.categoryId(),
-                 request.description(), request.amount(), request.expectedOn(),
+                 request.description(), request.amount(), request.expectedOn(), request.occurredOn(),
                  request.entityId(), request.necessity());
     }
 
@@ -185,7 +185,8 @@ class EntryController {
             @NotNull @Positive Integer categoryId,
             @Size(max = 255) String description,
             @NotNull @DecimalMin("0.01") @Digits(integer = 17, fraction = 2) BigDecimal amount,
-            @NotNull LocalDate expectedOn,
+            LocalDate expectedOn,
+            LocalDate occurredOn,
             @Positive Integer entityId,
             Necessity necessity) {
     }

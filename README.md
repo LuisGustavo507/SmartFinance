@@ -38,10 +38,10 @@ mais amplo; este README descreve o que o código faz e como executá-lo.
 | `POST /api/entries/planned` | `{ "walletId", "categoryId", "description", "amount", "expectedOn", "necessity"?, "newEntityName"? }` → `201` |
 | `POST /api/entries/series` | `{ "walletId", "categoryId", "description", "amount", "firstExpectedOn", "totalOccurrences", "entityId"?, "necessity"?, "newEntityName"? }` → `201` com todas as ocorrências |
 | `GET /api/entries/series/{seriesId}` | Todas as ocorrências da série do usuário, inclusive canceladas; alheia/inexistente → `404` |
-| `PUT /api/entries/{id}` | Edita um lançamento `PREVISTO` próprio: `{ "walletId", "categoryId", "description", "amount", "expectedOn", "entityId"? }` → `200`; efetivado/cancelado → `409` |
+| `PUT /api/entries/{id}` | Edita lançamento `PREVISTO` ou `EFETIVADO` próprio do mês atual ou futuro: `{ "walletId", "categoryId", "description", "amount", "expectedOn" (previsto) ou "occurredOn" (efetivado), "entityId"? }` → `200`; cancelado ou mês encerrado → `409` |
 | `PUT /api/entries/series/{seriesId}/occurrences/{occurrenceNumber}` | Edita esta ocorrência e as futuras `PREVISTO` da série → `200` com as ocorrências atualizadas; base não editável → `409` |
-| `POST /api/entries/{id}/cancel` | Cancela lançamento `PREVISTO` próprio → `204`; já processado → `409` |
-| `PUT /api/entries/{id}/entity` | `{ "entityId": 5 }` ou `{ "entityId": null }` → corrige **somente** a entidade do lançamento, inclusive já efetivado; alheio/inexistente → `404` |
+| `POST /api/entries/{id}/cancel` | Cancela lançamento `PREVISTO` ou `EFETIVADO` próprio do mês atual ou futuro → `204`; cancelado ou mês encerrado → `409` |
+| `PUT /api/entries/{id}/entity` | `{ "entityId": 5 }` ou `{ "entityId": null }` → corrige **somente** a entidade do lançamento, inclusive já efetivado, enquanto seu mês estiver aberto; encerrado → `409`; alheio/inexistente → `404` |
 | `GET /api/entries?month=YYYY-MM[&entityId=ID]` | Realizados e previstos do usuário no mês de referência; exclui cancelados |
 | `POST /api/payables` | `{ "categoryId", "entityId"?, "description"?, "necessity", "amount", "dueOn" }` → `201`; obrigação sem conta pagadora e sem débito no saldo |
 | `GET /api/payables?month=YYYY-MM` | Contas do mês do vencimento e todas as atrasadas ainda não quitadas; inclui canceladas do mês para consulta histórica |
@@ -93,8 +93,7 @@ receitas realizadas **menos** despesas realizadas **menos** transferências
 enviadas **mais** transferências recebidas **menos** pagamentos de fatura de
 cartão **menos** pagamentos de contas a pagar não estornados. É calculado sob demanda a partir
 dos fatos registrados, pode ser negativo e não representa saldo bancário
-confirmado. Alteração e exclusão de carteiras, edição de lançamentos já
-efetivados e conciliação bancária ainda não existem.
+confirmado. Alteração e exclusão de carteiras e conciliação bancária ainda não existem.
 
 Categorias também pertencem sempre ao usuário autenticado: `ownerUserId`
 enviado pelo cliente é ignorado. O nome é aparado nas pontas; dentro da
@@ -137,13 +136,17 @@ mas recebem `expectedOn` em vez de `occurredOn`. A data prevista precisa
 ser **posterior ao dia atual no fuso de negócio** e não anterior ao início
 da carteira.
 Até a efetivação, não afetam o saldo estimado nem os totais realizados.
-Podem ser cancelados enquanto previstos; um lançamento alheio retorna `404`,
-um já efetivado ou cancelado retorna `409`. Um lançamento ainda `PREVISTO`
-também pode ser editado: carteira, categoria, descrição, valor, entidade e
-data prevista podem mudar, mas a nova data deve continuar futura no fuso de
-negócio e a natureza segue a categoria escolhida. Lançamentos `EFETIVADO`
-ou `CANCELADO` não são editáveis e retornam `409`; assim o histórico
-realizado e o saldo não mudam retroativamente. O job roda diariamente às
+Lançamentos `PREVISTO` e `EFETIVADO` podem ser editados ou cancelados enquanto
+seu mês de referência for o mês atual ou futuro no fuso de negócio. Desde o
+primeiro dia do mês seguinte, não podem mais ser alterados (`409`); registros
+de outro usuário retornam `404`. Editar não muda o tipo do lançamento:
+previstos aceitam nova data futura (`expectedOn`); efetivados aceitam data
+(`occurredOn`) entre o início do mês atual e hoje. Carteira, categoria,
+necessidade, descrição, valor e entidade podem ser corrigidos, atualizando
+os resumos e o saldo estimado quando pertinente. Cancelar exige confirmação
+na interface, mantém o registro com status `CANCELADO` e remove seu efeito
+nos totais e, se efetivado, no saldo. Um cancelado não pode ser alterado ou
+cancelado novamente (`409`). O job roda diariamente às
 **00:05 de `America/Sao_Paulo`** e na inicialização da aplicação para
 recuperar dias perdidos. Ele efetiva cada previsto vencido uma única vez:
 `occurredOn` vira `expectedOn`, `effectiveAt` marca quando o job rodou e o
@@ -151,7 +154,8 @@ mês de referência continua sendo o da data prevista. O cancelado não é
 processado nem aparece na listagem comum. O job e o cancelamento usam
 atualização condicional para evitar dupla transição. O fuso é configurável
 por `smartfinance.time-zone`; timestamps persistidos e JWT continuam em UTC.
-Estorno de lançamentos comuns e conciliação bancária ainda não existem.
+Correções de lançamentos comuns de meses encerrados e conciliação bancária
+ainda não existem.
 
 ### Contas a pagar
 
@@ -350,7 +354,8 @@ nada é gravado se o lançamento ou a compra for recusado. `entityId` e
 branco) retorna `400`.
 
 O **vínculo** com a entidade pode ser corrigido depois, inclusive em
-lançamento já efetivado ou em compra com fatura fechada:
+lançamento já efetivado enquanto seu mês não tiver terminado, ou em compra
+com fatura fechada:
 `PUT /api/entries/{id}/entity` age em um lançamento e
 `PUT /api/card-purchases/{id}/entity` age na compra inteira (todas as
 parcelas). A correção muda apenas a identificação: valores, datas, conta,
@@ -458,7 +463,9 @@ instância; não há coordenação entre réplicas.
     para preservar despesas históricas; exigida pela API em novas despesas)
     e V13 (catálogo global de instituições com a entrada `OUTRA` e
     instituições pré-cadastradas), V14 (descrições opcionais em lançamentos e
-    compras) e V15 (convites do beta fechado, com consumo único por email).
+     compras), V15 (convites do beta fechado, com consumo único por email),
+     V16 (contas a pagar) e V17 (cancelamento de lançamentos efetivados sem
+     apagar as datas originais).
 - `src/main/java/project/smartfinance/infrastructure/persistence/generated/`:
   classes JPA **geradas a partir do schema migrado**, nunca editar à mão.
   Hibernate apenas valida o schema (`ddl-auto=validate`).
@@ -549,8 +556,9 @@ rotas internas redirecionam para `/login`. No desktop o menu fica fixo à
 esquerda; abaixo de 900 px ele vira uma gaveta com botão de menu. A UI obtém
 CSRF, restaura a sessão, cria/lista carteiras, categorias e contrapartes,
 ativa/desativa, renomeia e exclui contrapartes sem vínculos, registra
-receitas/despesas realizadas ou previstas, cancela previsões, edita uma
-previsão ou esta e as futuras de uma série, cria séries
+receitas/despesas realizadas ou previstas, edita e cancela lançamentos de
+meses ainda abertos (com confirmação antes de cancelar) ou edita esta e as
+futuras previsões de uma série, cria séries
 mensais finitas e consulta suas ocorrências, cadastra cartões de crédito,
 registra compras no cartão à vista ou parceladas em Lançamentos, acompanha
 as faturas por cartão e mês em Faturas e paga as faturas fechadas,
@@ -687,7 +695,7 @@ catálogo, com a entrada `OUTRA` para nomes desconhecidos, igual às contas.
 
 Lacunas conhecidas, todas fora do escopo documentado da V1 ou explicitamente
 adiadas: edição/exclusão de contas, edição de nome ou natureza de categoria,
-edição dos valores de lançamentos já efetivados, conciliação bancária,
+correção de lançamentos de meses encerrados, conciliação bancária,
 pagamento parcial de fatura, devolução parcial, entrada por voz, múltiplas
 moedas, contabilidade formal e projeção de saldo futuro por conta. O fluxo
 de solicitação de inclusão de instituição no catálogo continua não

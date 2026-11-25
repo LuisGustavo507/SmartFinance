@@ -31,7 +31,11 @@ public interface EntryStore {
     Optional<Entry> findForOwner(int ownerUserId, int id);
 
     Entry updatePlanned(int ownerUserId, int id, int walletId, int categoryId, Kind kind,
-            String description, BigDecimal amount, LocalDate expectedOn,
+             String description, BigDecimal amount, LocalDate expectedOn,
+             Integer entityId, String entityName, Necessity necessity);
+
+    Entry updateRealized(int ownerUserId, int id, int walletId, int categoryId, Kind kind,
+            String description, BigDecimal amount, LocalDate occurredOn,
             Integer entityId, String entityName, Necessity necessity);
 
     Optional<Entry> updateEntityLink(int ownerUserId, int id, Integer entityId);

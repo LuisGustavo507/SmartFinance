@@ -126,12 +126,29 @@ public class Entries {
 
     @Transactional
     public Entry update(int ownerId, int id, int walletId, int categoryId,
-            String description, BigDecimal amount, LocalDate expectedOn, Integer entityId,
-            Necessity necessity) {
+            String description, BigDecimal amount, LocalDate expectedOn, LocalDate occurredOn,
+            Integer entityId, Necessity necessity) {
         Entry current = store.findForOwner(ownerId, id)
                 .orElseThrow(EntryReferenceNotFoundException::new);
-        if (!"PREVISTO".equals(current.status())) {
-            throw new EntryAlreadyProcessedException();
+        requireEditable(current);
+        if ("EFETIVADO".equals(current.status())) {
+            if (occurredOn == null || expectedOn != null) {
+                throw new IllegalArgumentException("Informe somente a data efetiva.");
+            }
+            if (occurredOn.isAfter(LocalDate.now(clock))
+                    || YearMonth.from(occurredOn).isBefore(YearMonth.now(clock))) {
+                throw new IllegalArgumentException(
+                        "A data efetiva deve estar entre o início do mês atual e hoje.");
+            }
+            References refs = validateReferences(ownerId, walletId, categoryId, entityId,
+                    amount, occurredOn);
+            return store.updateRealized(ownerId, id, walletId, categoryId,
+                    refs.category().kind(), normalizeDescription(description), amount, occurredOn,
+                    entityId, refs.counterparty() == null ? null : refs.counterparty().name(),
+                    necessityForEdit(refs.category().kind(), current, necessity));
+        }
+        if (expectedOn == null || occurredOn != null) {
+            throw new IllegalArgumentException("Informe somente a data prevista.");
         }
         References refs = validateReferences(ownerId, walletId, categoryId, entityId,
                 amount, expectedOn);
@@ -140,6 +157,13 @@ public class Entries {
                 refs.category().kind(), normalizeDescription(description), amount, expectedOn, entityId,
                 refs.counterparty() == null ? null : refs.counterparty().name(),
                 necessityForEdit(refs.category().kind(), current, necessity));
+    }
+
+    private void requireEditable(Entry entry) {
+        if ("CANCELADO".equals(entry.status())
+                || YearMonth.from(entry.referenceMonth()).isBefore(YearMonth.now(clock))) {
+            throw new EntryAlreadyProcessedException();
+        }
     }
 
     /**
@@ -165,6 +189,7 @@ public class Entries {
         if (!"PREVISTO".equals(anchor.status())) {
             throw new EntryAlreadyProcessedException();
         }
+        requireEditable(anchor);
         References refs = validateReferences(ownerId, walletId, categoryId, entityId,
                 amount, expectedOn);
         requireFuture(expectedOn);
@@ -177,6 +202,7 @@ public class Entries {
                     || !"PREVISTO".equals(occurrence.status())) {
                 continue;
             }
+            requireEditable(occurrence);
             LocalDate date;
             try {
                 YearMonth month = anchorMonth.plusMonths(
@@ -200,9 +226,9 @@ public class Entries {
      */
     @Transactional
     public Entry updateEntityLink(int ownerId, int id, Integer entityId) {
-        if (store.findForOwner(ownerId, id).isEmpty()) {
-            throw new EntryReferenceNotFoundException();
-        }
+        Entry current = store.findForOwner(ownerId, id)
+                .orElseThrow(EntryReferenceNotFoundException::new);
+        requireEditable(current);
         requireActiveEntity(ownerId, entityId);
         return store.updateEntityLink(ownerId, id, entityId)
                 .orElseThrow(EntryReferenceNotFoundException::new);
@@ -222,7 +248,7 @@ public class Entries {
 
     @Transactional
     public void cancel(int ownerId, int id) {
-        if (transitions.cancel(id, ownerId)) {
+        if (transitions.cancel(id, ownerId, YearMonth.now(clock).atDay(1))) {
             return;
         }
         if (transitions.existsForOwner(id, ownerId)) {

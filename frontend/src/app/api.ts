@@ -350,10 +350,12 @@ export class Api {
   }
 
   updateEntry(id: number, walletId: number, categoryId: number, description: string,
-    amount: number, expectedOn: string, entityId: number | null,
-    necessity: Necessity | null): Observable<Entry> {
+    amount: number, date: string, status: 'PREVISTO' | 'EFETIVADO',
+    entityId: number | null, necessity: Necessity | null): Observable<Entry> {
     return this.http.put<Entry>(`/api/entries/${id}`, {
-      walletId, categoryId, description, amount, expectedOn, entityId, necessity
+      walletId, categoryId, description, amount,
+      ...(status === 'PREVISTO' ? { expectedOn: date } : { occurredOn: date }),
+      entityId, necessity
     });
   }
 

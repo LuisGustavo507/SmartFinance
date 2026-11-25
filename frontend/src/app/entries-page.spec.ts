@@ -24,6 +24,33 @@ describe('EntriesPage', () => {
     }).compileComponents();
   });
 
+  it('offers edit and confirmed cancellation only within the editable month', async () => {
+    const fixture = TestBed.createComponent(EntriesPage);
+    const store = TestBed.inject(FinanceStore);
+    const today = store.currentBusinessDate();
+    const previous = new Date(`${today.slice(0, 7)}-01T12:00:00Z`);
+    previous.setUTCDate(0);
+    store.selectedMonth = today.slice(0, 7);
+    store.entries.set([
+      { ...entry, id: 21, status: 'EFETIVADO', description: 'Compra atual',
+        occurredOn: today, expectedOn: null, referenceMonth: `${today.slice(0, 7)}-01`,
+        seriesId: null },
+      { ...entry, id: 22, status: 'EFETIVADO', description: 'Compra antiga',
+        occurredOn: previous.toISOString().slice(0, 10), expectedOn: null,
+        referenceMonth: `${previous.toISOString().slice(0, 7)}-01`, seriesId: null }
+    ]);
+    fixture.detectChanges();
+    const rows = [...(fixture.nativeElement as HTMLElement)
+      .querySelectorAll('.simple-list li')];
+    const current = rows.find(row => row.textContent?.includes('Compra atual'))!;
+    const closed = rows.find(row => row.textContent?.includes('Compra antiga'))!;
+    expect(current.textContent).toContain('Editar');
+    expect(current.textContent).toContain('Cancelar');
+    expect(closed.textContent).not.toContain('Editar');
+    expect(closed.textContent).not.toContain('Cancelar');
+    expect(closed.textContent).not.toContain('Entidade');
+  });
+
   it('shows only card-specific fields for a credit-card purchase', async () => {
     const fixture = TestBed.createComponent(EntriesPage);
     const store = TestBed.inject(FinanceStore);

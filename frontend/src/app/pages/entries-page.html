@@ -9,8 +9,8 @@
 @if (store.editingEntryId()) {
   <p-card id="entry-edit" header="Editar lançamento" styleClass="edit-card">
     <p class="muted">
-      Somente lançamentos previstos podem ser editados.
-      @if (store.editingSeriesId !== null) {
+      Lançamentos do mês atual podem ser corrigidos até o fim do mês.
+      @if (store.editingSeriesId !== null && store.editingEntryStatus === 'PREVISTO') {
         “Salvar esta e as futuras” altera apenas as ocorrências previstas a partir desta.
       }
     </p>
@@ -54,13 +54,13 @@
              [(ngModel)]="store.editDescription" maxlength="255" />
       <label for="edit-amount">Valor</label>
       <app-money-field inputId="edit-amount" name="edit-amount" [(ngModel)]="store.editAmount" />
-      <label for="edit-expected-on">Data prevista</label>
+      <label for="edit-expected-on">{{ store.editingEntryStatus === 'EFETIVADO' ? 'Data efetiva' : 'Data prevista' }}</label>
       <app-date-field inputId="edit-expected-on" name="edit-expected-on"
                       [(ngModel)]="store.editExpectedOn" required />
       <div class="form-actions">
         <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
                   (onClick)="store.cancelEntryEdit()" />
-        @if (store.editingSeriesId !== null) {
+        @if (store.editingSeriesId !== null && store.editingEntryStatus === 'PREVISTO') {
           <p-button type="button" label="Salvar esta e as futuras" severity="secondary"
                     [outlined]="true" [loading]="store.busy()"
                     [disabled]="editDisabled()"
@@ -75,8 +75,7 @@
 
 @if (store.selectedSeriesId(); as seriesId) {
   <p-card id="series-details" [header]="'Série ' + seriesId" styleClass="series-card">
-    <p>{{ occurrencesLabel() }}. Cada lançamento pode ser cancelado
-      individualmente enquanto estiver previsto.</p>
+    <p>{{ occurrencesLabel() }}. Cada lançamento do mês atual ou futuro pode ser corrigido individualmente.</p>
     <ul class="simple-list">
       @for (entry of store.selectedSeries(); track entry.id) {
         <li>
@@ -89,11 +88,11 @@
           </span>
           <span class="list-amount">{{ money(entry.amount) }}</span>
           <span class="badge" [class.inactive]="entry.status !== 'PREVISTO'">{{ entry.status }}</span>
-          @if (entry.status === 'PREVISTO') {
+           @if (store.entryCanChange(entry)) {
             <p-button label="Editar" severity="secondary" [text]="true"
                       [disabled]="store.busy()" (onClick)="startEdit(entry)" />
             <p-button label="Cancelar" severity="secondary" [text]="true"
-                      [disabled]="store.busy()" (onClick)="store.cancelEntry(entry.id)" />
+                       [disabled]="store.busy()" (onClick)="store.cancelEntry(entry)" />
           }
         </li>
       }
@@ -375,14 +374,16 @@
               <span class="list-amount" [class.income]="entry.kind === 'RECEITA'">
                 {{ entry.kind === 'RECEITA' ? '+' : '−' }} {{ money(entry.amount) }}
               </span>
-              @if (entry.status === 'PREVISTO') {
+               @if (store.entryCanChange(entry)) {
                 <p-button label="Editar" severity="secondary" [text]="true"
                           [disabled]="store.busy()" (onClick)="startEdit(entry)" />
                 <p-button label="Cancelar" severity="secondary" [text]="true"
-                          [disabled]="store.busy()" (onClick)="store.cancelEntry(entry.id)" />
+                           [disabled]="store.busy()" (onClick)="store.cancelEntry(entry)" />
               }
-              <p-button label="Entidade" severity="secondary" [text]="true"
-                        [disabled]="store.busy()" (onClick)="openEntryEntityEditor(entry)" />
+               @if (store.entryCanChange(entry)) {
+                 <p-button label="Entidade" severity="secondary" [text]="true"
+                           [disabled]="store.busy()" (onClick)="openEntryEntityEditor(entry)" />
+               }
             </li>
           }
         </ul>

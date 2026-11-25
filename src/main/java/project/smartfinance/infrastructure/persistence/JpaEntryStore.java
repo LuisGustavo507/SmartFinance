@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import org.springframework.stereotype.Repository;
 import project.smartfinance.application.entry.EntryAlreadyProcessedException;
 import project.smartfinance.application.entry.EntryReferenceNotFoundException;
@@ -173,7 +174,8 @@ class JpaEntryStore implements EntryStore {
     public Entry updatePlanned(int ownerUserId, int id, int walletId, int categoryId,
             Kind kind, String description, BigDecimal amount, LocalDate expectedOn,
             Integer entityId, String entityName, Necessity necessity) {
-        LancamentoFinanceiro entity = entityManager.find(LancamentoFinanceiro.class, id);
+        LancamentoFinanceiro entity = entityManager.find(LancamentoFinanceiro.class, id,
+                LockModeType.PESSIMISTIC_WRITE);
         if (entity == null || entity.getOwnerUserId() != ownerUserId) {
             throw new EntryReferenceNotFoundException();
         }
@@ -188,6 +190,30 @@ class JpaEntryStore implements EntryStore {
         entity.setValor(amount);
         entity.setDataPrevista(expectedOn);
         entity.setMesReferencia(expectedOn.withDayOfMonth(1));
+        entityManager.flush();
+        return toDomain(entity, kind, entityName);
+    }
+
+    @Override
+    public Entry updateRealized(int ownerUserId, int id, int walletId, int categoryId,
+            Kind kind, String description, BigDecimal amount, LocalDate occurredOn,
+            Integer entityId, String entityName, Necessity necessity) {
+        LancamentoFinanceiro entity = entityManager.find(LancamentoFinanceiro.class, id,
+                LockModeType.PESSIMISTIC_WRITE);
+        if (entity == null || entity.getOwnerUserId() != ownerUserId) {
+            throw new EntryReferenceNotFoundException();
+        }
+        if (!"EFETIVADO".equals(entity.getStatus())) {
+            throw new EntryAlreadyProcessedException();
+        }
+        entity.setContaFinanceiraId(walletId);
+        entity.setCategoriaId(categoryId);
+        entity.setEntidadeId(entityId);
+        entity.setNecessidade(necessity == null ? null : necessity.name());
+        entity.setDescricao(description);
+        entity.setValor(amount);
+        entity.setDataOcorrencia(occurredOn);
+        entity.setMesReferencia(occurredOn.withDayOfMonth(1));
         entityManager.flush();
         return toDomain(entity, kind, entityName);
     }

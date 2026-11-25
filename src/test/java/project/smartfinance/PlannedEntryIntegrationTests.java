@@ -99,7 +99,8 @@ class PlannedEntryIntegrationTests {
 
         int dueId = id(mvc.perform(plan(csrf, owner, walletId, categoryId, expected))
                 .andExpect(status().isCreated()).andReturn());
-        LocalDate missed = LocalDate.now(ZoneOffset.UTC).minusDays(2);
+        LocalDate missed = LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"))
+                .withDayOfMonth(1);
         jdbc.update("""
                 UPDATE lancamento_financeiro
                 SET data_prevista = ?, mes_referencia = ?
@@ -136,7 +137,7 @@ class PlannedEntryIntegrationTests {
                 .andExpect(jsonPath("$.projectedResult").value(-25.00));
         mvc.perform(post("/api/entries/{id}/cancel", dueId)
                         .cookie(csrf, owner).header("X-XSRF-TOKEN", csrf.getValue()))
-                .andExpect(status().isConflict());
+                .andExpect(status().isNoContent());
     }
 
     @Test

@@ -30,11 +30,13 @@ class JdbcPlannedEntryTransitions implements PlannedEntryTransitions {
     }
 
     @Override
-    public boolean cancel(int id, int ownerUserId) {
+    public boolean cancel(int id, int ownerUserId, LocalDate firstEditableMonth) {
         return jdbc.update("""
                 UPDATE lancamento_financeiro SET status = 'CANCELADO'
-                WHERE id = ? AND owner_user_id = ? AND status = 'PREVISTO'
-                """, id, ownerUserId) == 1;
+                WHERE id = ? AND owner_user_id = ?
+                    AND status IN ('PREVISTO', 'EFETIVADO')
+                    AND mes_referencia >= ?
+                """, id, ownerUserId, Date.valueOf(firstEditableMonth)) == 1;
     }
 
     @Override

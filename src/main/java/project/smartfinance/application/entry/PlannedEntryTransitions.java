@@ -7,7 +7,7 @@ public interface PlannedEntryTransitions {
 
     int realizeDue(LocalDate today, OffsetDateTime processedAt);
 
-    boolean cancel(int id, int ownerUserId);
+    boolean cancel(int id, int ownerUserId, LocalDate firstEditableMonth);
 
     boolean existsForOwner(int id, int ownerUserId);
 }

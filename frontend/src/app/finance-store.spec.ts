@@ -345,7 +345,10 @@ describe('FinanceStore', () => {
     expect(store.monthlySummary()?.projectedResult).toBe(-25);
     expect(store.wallets()[0].estimatedBalance).toBe(100);
 
-    const cancellation = store.cancelEntry(5);
+    const confirmation = vi.spyOn(TestBed.inject(ActionConfirmation), 'ask')
+      .mockResolvedValue(true);
+    const cancellation = store.cancelEntry(planned as Entry);
+    await Promise.resolve();
     http.expectOne('/api/auth/csrf').flush(null);
     await Promise.resolve();
     http.expectOne('/api/entries/5/cancel').flush(null);
@@ -354,6 +357,7 @@ describe('FinanceStore', () => {
     http.expectOne(request => request.url === '/api/monthly-summary')
       .flush(summary('2099-01-01'));
     await cancellation;
+    expect(confirmation).toHaveBeenCalledOnce();
     expect(store.entries()).toHaveLength(0);
   });
 
@@ -536,6 +540,91 @@ describe('FinanceStore', () => {
     expect(store.entries()[0].amount).toBe(35);
   });
 
+  it('requires confirmation before cancelling a realized entry and refreshes the balance', async () => {
+    await authenticate();
+    const today = store.currentBusinessDate();
+    store.selectedMonth = today.slice(0, 7);
+    const realized: Entry = {
+      id: 31, ownerUserId: 1, walletId: 3, categoryId: 4,
+      entityId: null, entityName: null, kind: 'DESPESA', status: 'EFETIVADO',
+      description: 'Compra errada', amount: 10, occurredOn: today, expectedOn: null,
+      referenceMonth: `${today.slice(0, 7)}-01`, effectiveAt: null,
+      createdAt: `${today}T10:00:00Z`, necessity: 'NEUTRA',
+      seriesId: null, occurrenceNumber: null, totalOccurrences: null
+    };
+    const confirm = vi.spyOn(TestBed.inject(ActionConfirmation), 'ask')
+      .mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+    await store.cancelEntry(realized);
+    http.expectNone('/api/entries/31/cancel');
+    expect(confirm).toHaveBeenCalledWith('Cancelar lançamento',
+      expect.stringContaining('saldo da carteira'), 'Cancelar lançamento');
+
+    const cancellation = store.cancelEntry(realized);
+    await Promise.resolve();
+    http.expectOne('/api/auth/csrf').flush(null);
+    await Promise.resolve();
+    http.expectOne('/api/entries/31/cancel').flush(null);
+    await Promise.resolve();
+    http.expectOne(request => request.url === '/api/entries').flush([]);
+    http.expectOne(request => request.url === '/api/monthly-summary')
+      .flush(summary(`${today.slice(0, 7)}-01`));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    http.expectOne('/api/wallets').flush([]);
+    await cancellation;
+    expect(store.notice()).toContain('cancelado');
+  });
+
+  it('edits a realized entry without converting it to a forecast and refreshes wallets', async () => {
+    await authenticate();
+    const today = store.currentBusinessDate();
+    store.selectedMonth = today.slice(0, 7);
+    const entry: Entry = {
+      id: 35, ownerUserId: 1, walletId: 3, categoryId: 4,
+      entityId: null, entityName: null, kind: 'DESPESA', status: 'EFETIVADO',
+      description: 'Mercado', amount: 10, occurredOn: today, expectedOn: null,
+      referenceMonth: `${today.slice(0, 7)}-01`, effectiveAt: `${today}T10:00:00Z`,
+      createdAt: `${today}T10:00:00Z`, necessity: 'NEUTRA',
+      seriesId: null, occurrenceNumber: null, totalOccurrences: null
+    };
+    store.startEditEntry(entry);
+    expect(store.editExpectedOn).toBe(today);
+    store.editAmount = 15;
+    const saving = store.saveEntryEdit('single');
+    http.expectOne('/api/auth/csrf').flush(null);
+    await Promise.resolve();
+    const request = http.expectOne('/api/entries/35');
+    expect(request.request.body.occurredOn).toBe(today);
+    expect(request.request.body.expectedOn).toBeUndefined();
+    request.flush({ ...entry, amount: 15 });
+    await Promise.resolve();
+    http.expectOne(request => request.url === '/api/entries').flush([{ ...entry, amount: 15 }]);
+    http.expectOne(request => request.url === '/api/monthly-summary')
+      .flush(summary(`${today.slice(0, 7)}-01`, 15));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    http.expectOne('/api/wallets').flush([]);
+    await saving;
+    expect(store.editingEntryId()).toBeNull();
+  });
+
+  it('does not offer changes for entries from a closed month', async () => {
+    await authenticate();
+    const previousMonth = new Date(`${store.currentBusinessDate().slice(0, 7)}-01T12:00:00Z`);
+    previousMonth.setUTCDate(0);
+    const closed: Entry = {
+      id: 32, ownerUserId: 1, walletId: 3, categoryId: 4,
+      entityId: null, entityName: null, kind: 'DESPESA', status: 'EFETIVADO',
+      description: 'Histórico', amount: 10, occurredOn: previousMonth.toISOString().slice(0, 10),
+      expectedOn: null, referenceMonth: previousMonth.toISOString().slice(0, 7) + '-01',
+      effectiveAt: null, createdAt: previousMonth.toISOString(), necessity: 'NEUTRA',
+      seriesId: null, occurrenceNumber: null, totalOccurrences: null
+    };
+    expect(store.entryCanChange(closed)).toBe(false);
+    store.startEditEntry(closed);
+    expect(store.editingEntryId()).toBeNull();
+    await store.cancelEntry(closed);
+    http.expectNone('/api/entries/32/cancel');
+  });
+
   it('edits the current and future occurrences of a series', async () => {
     await authenticate();
     store.categories.set([{ id: 4, ownerUserId: 1, name: 'Internet',
@@ -605,7 +694,7 @@ describe('FinanceStore', () => {
     await Promise.resolve();
     http.expectOne('/api/entries/11').flush(null, { status: 409, statusText: 'Conflict' });
     await saving;
-    expect(store.error()).toContain('Somente lançamentos previstos');
+    expect(store.error()).toContain('não pode mais ser editado');
     expect(store.editingEntryId()).toBe(11);
   });
 
@@ -746,12 +835,13 @@ describe('FinanceStore', () => {
   });
 
   it('corrects the entity of an effected entry without changing its amounts', async () => {
+    const today = store.currentBusinessDate();
     const entry: Entry = {
       id: 11, ownerUserId: 1, walletId: 3, categoryId: 4,
       entityId: 5, entityName: 'Fornecedor A', kind: 'DESPESA', status: 'EFETIVADO',
-      description: 'Compra', amount: 40, expectedOn: null, occurredOn: '2026-01-05',
-      referenceMonth: '2026-01-01', effectiveAt: '2026-01-05T00:00:00Z',
-      createdAt: '2026-01-05T00:00:00Z', seriesId: null, occurrenceNumber: null,
+      description: 'Compra', amount: 40, expectedOn: null, occurredOn: today,
+      referenceMonth: `${today.slice(0, 7)}-01`, effectiveAt: `${today}T00:00:00Z`,
+      createdAt: `${today}T00:00:00Z`, seriesId: null, occurrenceNumber: null,
       totalOccurrences: null, necessity: 'NECESSARIA'
     };
     await authenticate({ entries: [entry] });

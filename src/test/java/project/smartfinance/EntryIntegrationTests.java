@@ -253,6 +253,7 @@ class EntryIntegrationTests {
 
     @Test
     void correctsTheEntityLinkOfEffectedRecordsWithoutTouchingOtherData() throws Exception {
+        String today = java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")).toString();
         Cookie csrf = csrf();
         int ownerId = register(csrf, "entry-entity-link@example.test");
         register(csrf, "entry-entity-link-other@example.test");
@@ -269,7 +270,7 @@ class EntryIntegrationTests {
                         .contentType("application/json").content("{\"name\":\"Fornecedor B\"}"))
                 .andExpect(status().isCreated()).andReturn());
         MvcResult created = mvc.perform(entry(csrf, owner, wallet, expense, "Compra vinculada",
-                        "40.00", "2026-01-08", "NECESSARIA"))
+                        "40.00", today, "NECESSARIA"))
                 .andExpect(status().isCreated()).andReturn();
         int entryId = id(created);
         mvc.perform(put("/api/entries/{id}/entity", entryId).cookie(csrf, owner)
@@ -281,7 +282,7 @@ class EntryIntegrationTests {
                 .andExpect(jsonPath("$.entityName").value("Fornecedor A"))
                 .andExpect(jsonPath("$.amount").value(40.00))
                 .andExpect(jsonPath("$.status").value("EFETIVADO"))
-                .andExpect(jsonPath("$.occurredOn").value("2026-01-08"));
+                .andExpect(jsonPath("$.occurredOn").value(today));
 
         mvc.perform(put("/api/entries/{id}/entity", entryId).cookie(csrf, other)
                         .header("X-XSRF-TOKEN", csrf.getValue())
@@ -321,7 +322,7 @@ class EntryIntegrationTests {
                 .andExpect(jsonPath("$.entityId").isEmpty())
                 .andExpect(jsonPath("$.entityName").isEmpty())
                 .andExpect(jsonPath("$.amount").value(40.00));
-        mvc.perform(get("/api/entries?month=2026-01").cookie(owner))
+        mvc.perform(get("/api/entries?month=" + today.substring(0, 7)).cookie(owner))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].entityName").isEmpty());
     }
