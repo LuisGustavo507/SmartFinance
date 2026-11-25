@@ -68,67 +68,79 @@
                 {{ card.name }}
                 @if (card.institutionName) { <small class="muted">· {{ card.institutionName }}</small> }
                 @if (!card.active) { <small class="muted">· Inativo</small> }
-                <p-button label="Editar" severity="secondary" [text]="true"
-                          (onClick)="store.beginCardEdit(card)" />
-                <p-button [label]="card.active ? 'Desativar' : 'Reativar'" severity="secondary"
-                          [text]="true" [disabled]="store.busy()"
-                          (onClick)="store.setCardActive(card, !card.active)" />
               </span>
-              <span class="badge">fecha {{ card.closingDay }} · vence {{ card.dueDay }}</span>
+              <span class="badge" [class.inactive]="!card.active">
+                fecha {{ card.closingDay }} · vence {{ card.dueDay }}
+              </span>
+              <p-button icon="pi pi-pencil" [ariaLabel]="'Editar cartão ' + card.name"
+                        [title]="'Editar cartão ' + card.name" severity="secondary"
+                        [text]="true" [disabled]="store.busy()"
+                        (onClick)="openEditor(card)" />
             </li>
           }
         </ul>
-        @if (store.editingCardId !== null) {
-          <form (ngSubmit)="store.updateCard()" class="form">
-            <h3>Editar cartão</h3>
-            <label for="edit-card-name">Nome</label>
-            <input pInputText id="edit-card-name" name="edit-card-name"
-                   [(ngModel)]="store.editingCardName" required maxlength="120" />
-            <label for="edit-card-institution">Instituição</label>
-            <select id="edit-card-institution" name="edit-card-institution"
-                    [(ngModel)]="store.editingCardInstitutionChoice" required>
-              <option value="">Selecione</option>
-              @for (institution of store.institutions(); track institution.id) {
-                @if (institution.code !== 'OUTRA') {
-                  <option [value]="institution.name">{{ institution.name }}</option>
-                }
-              }
-              <option value="OUTRA">Outra instituição (informar o nome)</option>
-            </select>
-            @if (store.editingCardInstitutionChoice === 'OUTRA') {
-              <label for="edit-card-institution-name">Nome da instituição</label>
-              <input pInputText id="edit-card-institution-name"
-                     name="edit-card-institution-name"
-                     [(ngModel)]="store.editingCardInstitutionName" maxlength="120" required />
-            }
-            <label for="edit-card-closing">Dia de fechamento</label>
-            <p-inputnumber inputId="edit-card-closing" name="edit-card-closing"
-                           [(ngModel)]="store.editingClosingDay" [min]="1" [max]="28"
-                           [useGrouping]="false" />
-            <label for="edit-card-due">Dia de vencimento</label>
-            <p-inputnumber inputId="edit-card-due" name="edit-card-due"
-                           [(ngModel)]="store.editingDueDay" [min]="1" [max]="28"
-                           [useGrouping]="false" />
-            <small class="muted">Após a primeira compra ou fatura, os dias não podem mudar.</small>
-            <label for="edit-card-limit">Limite informativo</label>
-            <app-money-field inputId="edit-card-limit" name="edit-card-limit"
-                              [(ngModel)]="store.editingCardLimit" />
-            <label for="edit-card-wallet">Conta de pagamento padrão</label>
-            <select id="edit-card-wallet" name="edit-card-wallet"
-                    [(ngModel)]="store.editingCardWalletId">
-              <option [ngValue]="null">Sem conta padrão</option>
-              @for (wallet of store.activeWallets(); track wallet.id) {
-                <option [ngValue]="wallet.id">{{ wallet.name }}</option>
-              }
-            </select>
-            <div class="form-actions">
-              <p-button type="button" label="Cancelar edição" severity="secondary" [text]="true"
-                        (onClick)="store.editingCardId = null" />
-              <p-button type="submit" label="Salvar cartão" [loading]="store.busy()" />
-            </div>
-          </form>
-        }
       }
     </p-card>
   </div>
 </div>
+
+<app-maintenance-dialog #editor dialogTitle="Gerenciar cartão"
+                        [visible]="store.editingCardId !== null"
+                        [hasUnsavedChanges]="cardDirty" [busy]="store.busy()"
+                        (closeRequested)="closeEditor()">
+  @if (editedCard(); as card) {
+    <form (ngSubmit)="saveCard()" class="form">
+      <label for="edit-card-name">Nome</label>
+      <input pInputText id="edit-card-name" name="edit-card-name"
+             [(ngModel)]="store.editingCardName" required maxlength="120" />
+      <label for="edit-card-institution">Instituição</label>
+      <select id="edit-card-institution" name="edit-card-institution"
+              [(ngModel)]="store.editingCardInstitutionChoice" required>
+        <option value="">Selecione</option>
+        @for (institution of store.institutions(); track institution.id) {
+          @if (institution.code !== 'OUTRA') {
+            <option [value]="institution.name">{{ institution.name }}</option>
+          }
+        }
+        <option value="OUTRA">Outra instituição (informar o nome)</option>
+      </select>
+      @if (store.editingCardInstitutionChoice === 'OUTRA') {
+        <label for="edit-card-institution-name">Nome da instituição</label>
+        <input pInputText id="edit-card-institution-name"
+               name="edit-card-institution-name"
+               [(ngModel)]="store.editingCardInstitutionName" maxlength="120" required />
+      }
+      <label for="edit-card-closing">Dia de fechamento</label>
+      <p-inputnumber inputId="edit-card-closing" name="edit-card-closing"
+                     [(ngModel)]="store.editingClosingDay" [min]="1" [max]="28"
+                     [useGrouping]="false" />
+      <label for="edit-card-due">Dia de vencimento</label>
+      <p-inputnumber inputId="edit-card-due" name="edit-card-due"
+                     [(ngModel)]="store.editingDueDay" [min]="1" [max]="28"
+                     [useGrouping]="false" />
+      <small class="muted">Após a primeira compra ou fatura, os dias não podem mudar.</small>
+      <label for="edit-card-limit">Limite informativo</label>
+      <app-money-field inputId="edit-card-limit" name="edit-card-limit"
+                        [(ngModel)]="store.editingCardLimit" />
+      <label for="edit-card-wallet">Conta de pagamento padrão</label>
+      <select id="edit-card-wallet" name="edit-card-wallet"
+              [(ngModel)]="store.editingCardWalletId">
+        <option [ngValue]="null">Sem conta padrão</option>
+        @for (wallet of store.activeWallets(); track wallet.id) {
+          <option [ngValue]="wallet.id">{{ wallet.name }}</option>
+        }
+      </select>
+      <div class="form-actions">
+        <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                  (onClick)="editor.requestClose()" />
+        <p-button type="submit" label="Salvar cartão" [loading]="store.busy()"
+                  [disabled]="!store.editingCardName.trim() || !store.editingCardInstitution.trim()" />
+      </div>
+    </form>
+    <div class="record-operations">
+      <p-button [label]="card.active ? 'Desativar' : 'Reativar'"
+                severity="secondary" [outlined]="true" [disabled]="store.busy()"
+                (onClick)="store.setCardActive(card, !card.active)" />
+    </div>
+  }
+</app-maintenance-dialog>

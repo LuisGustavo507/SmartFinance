@@ -382,24 +382,7 @@
                           [disabled]="store.busy()" (onClick)="store.cancelEntry(entry.id)" />
               }
               <p-button label="Entidade" severity="secondary" [text]="true"
-                        [disabled]="store.busy()" (onClick)="store.startEntryEntityEdit(entry)" />
-              @if (store.editingEntryEntityId === entry.id) {
-                <form (ngSubmit)="store.saveEntryEntity()" class="form">
-                  <label [for]="'entry-entity-' + entry.id">Entidade do lançamento</label>
-                  <select [id]="'entry-entity-' + entry.id" [name]="'entry-entity-' + entry.id"
-                          [(ngModel)]="store.entryEntitySelection">
-                    <option [ngValue]="null">Sem entidade</option>
-                    @for (entity of store.counterparties(); track entity.id) {
-                      @if (entity.active) { <option [ngValue]="entity.id">{{ entity.name }}</option> }
-                    }
-                  </select>
-                  <div class="form-actions">
-                    <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
-                              (onClick)="store.editingEntryEntityId = null" />
-                    <p-button type="submit" label="Salvar entidade" [loading]="store.busy()" />
-                  </div>
-                </form>
-              }
+                        [disabled]="store.busy()" (onClick)="openEntryEntityEditor(entry)" />
             </li>
           }
         </ul>
@@ -407,3 +390,31 @@
     </p-card>
   </div>
 </div>
+
+<app-maintenance-dialog #entryEntityEditor dialogTitle="Entidade do lançamento"
+                        [visible]="store.editingEntryEntityId !== null"
+                        [hasUnsavedChanges]="entryEntityDirty" [busy]="store.busy()"
+                        (closeRequested)="closeEntryEntityEditor()">
+  @if (editedEntryForEntity(); as entry) {
+    <p class="muted">
+      {{ shortDate(entry.occurredOn ?? entry.expectedOn) }} ·
+      {{ entry.description || 'Sem descrição' }} · {{ money(entry.amount) }}
+    </p>
+    <form (ngSubmit)="saveEntryEntity()" class="form">
+      <label for="entry-entity-edit">Entidade do lançamento</label>
+      <select id="entry-entity-edit" name="entry-entity-edit"
+              [(ngModel)]="store.entryEntitySelection">
+        <option [ngValue]="null">Sem entidade</option>
+        @for (entity of entryEntityChoices(entry); track entity.id) {
+          <option [ngValue]="entity.id">{{ entity.name }}{{ entity.active ? '' : ' (inativa)' }}</option>
+        }
+      </select>
+      <div class="form-actions">
+        <p-button type="button" label="Cancelar" severity="secondary" [text]="true"
+                  (onClick)="entryEntityEditor.requestClose()" />
+        <p-button type="submit" label="Salvar entidade" [loading]="store.busy()"
+                  [disabled]="store.busy() || !entryEntityDirty()" />
+      </div>
+    </form>
+  }
+</app-maintenance-dialog>

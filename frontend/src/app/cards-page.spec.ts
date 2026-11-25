@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { CardsPage } from './pages/cards-page';
 import { FinanceStore } from './finance-store';
+import { ActionConfirmation } from './action-confirmation';
 import { vi } from 'vitest';
 import { provideRouter } from '@angular/router';
 
@@ -56,15 +57,17 @@ describe('CardsPage', () => {
       .find(candidate => candidate.textContent?.includes('Cadastrar cartão')) as HTMLButtonElement;
     cardButton.click();
     expect(createCard).toHaveBeenCalled();
-    store.beginCardEdit(card);
+    const editButton = [...compiled.querySelectorAll('button')]
+      .find(candidate => candidate.getAttribute('aria-label') === 'Editar cartão Cartão Gold') as HTMLButtonElement;
+    editButton.click();
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
-    expect((compiled.querySelector('#edit-card-name') as HTMLInputElement).value).toBe('Cartão Gold');
-    expect((compiled.querySelector('#edit-card-institution') as HTMLSelectElement).value)
+    expect((document.querySelector('#edit-card-name') as HTMLInputElement).value).toBe('Cartão Gold');
+    expect((document.querySelector('#edit-card-institution') as HTMLSelectElement).value)
       .toBe('Banco Teste');
-    expect(compiled.querySelector('#edit-card-institution-name')).toBeNull();
-    expect(compiled.textContent).toContain('Salvar cartão');
+    expect(document.querySelector('#edit-card-institution-name')).toBeNull();
+    expect(document.querySelector('.p-dialog')?.textContent).toContain('Salvar cartão');
   });
 
   it('asks for the institution name only when the card uses OUTRA', () => {
@@ -97,5 +100,38 @@ describe('CardsPage', () => {
       .find(candidate => candidate.textContent?.includes('Tentar novamente')) as HTMLButtonElement;
     retry.click();
     expect(loadCatalog).toHaveBeenCalledTimes(2);
+  });
+
+  it('requires confirmation before discarding edits in the card dialog', async () => {
+    const store = TestBed.inject(FinanceStore);
+    vi.spyOn(store, 'loadCardCatalog').mockResolvedValue(undefined);
+    store.cards.set([card]);
+    const ask = vi.spyOn(TestBed.inject(ActionConfirmation), 'ask').mockResolvedValue(false);
+    const fixture = TestBed.createComponent(CardsPage);
+    fixture.detectChanges();
+    const page = fixture.componentInstance;
+    const trigger = [...(fixture.nativeElement as HTMLElement).querySelectorAll('button')]
+      .find(button => button.getAttribute('aria-label') === 'Editar cartão Cartão Gold') as HTMLButtonElement;
+    trigger.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const name = document.querySelector('#edit-card-name') as HTMLInputElement;
+    name.value = 'Outro nome';
+    name.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    expect(page.cardDirty()).toBe(true);
+    const dialog = document.querySelector('.p-dialog') as HTMLElement;
+    expect(dialog.textContent).toContain('Desativar');
+    const cancel = [...dialog.querySelectorAll('button')]
+      .find(button => button.textContent?.trim() === 'Cancelar') as HTMLButtonElement;
+    cancel.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(store.editingCardId).toBe(3);
+    expect(ask).toHaveBeenCalledWith('Descartar alterações',
+      'Descartar as alterações não salvas?', 'Descartar');
   });
 });
